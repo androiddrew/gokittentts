@@ -1,0 +1,7 @@
+{
+  "type": "ONNX2",
+  "voices": "voices.npz",
+  "model_file": "model.onnx",
+  "speed_priors": {},
+  "voice_aliases": {"Bruno": "expr-voice-3-m"}
+}

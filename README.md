@@ -33,7 +33,7 @@ sudo apt install espeak-ng libespeak-ng-dev ffmpeg
 mkdir -p third_party
 curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.29.1/onnxruntime-linux-x64-1.29.1.tgz \
   | tar xz -C third_party/                       # linux-aarch64 on arm64
-CGO_ENABLED=1 go build -o bin/gokittentts ./cmd/gokittentts
+CGO_ENABLED=1 go build -tags espeak -o bin/gokittentts ./cmd/gokittentts
 bin/gokittentts say --onnxruntime-lib third_party/onnxruntime-linux-x64-1.29.1/lib/libonnxruntime.so.1.29.1 \
   --voice Bruno --out out.wav "Hello from Go."
 ```
