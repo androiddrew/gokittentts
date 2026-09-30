@@ -1,0 +1,19 @@
+Hello from Go.
+The price rose to $3.5 million, or 1,500 dollars.
+Pi is roughly 3.14159, and e is about 2.718.
+The city has 1,234,567 residents and 12,000 cars.
+Version 3.5 shipped on time.
+Wait... what happened?!
+Really?! No way!!! Are you sure??
+She said, "It's fine." Then she left.
+He called it 'the best day ever'.
+The results — all of them — were clear.
+The range is 10-20 – roughly half – of the total.
+I thought… maybe not.
+Dr. Smith met Mr. Jones at 10 a.m. on Monday.
+Prof. Lee cited Smith et al. in Fig. 3, see e.g. the appendix.
+The meeting ends at 5 p.m. Bring your notes.
+Numbers like 1.5, 2.25, and 0.75 appear often; commas, colons: and semicolons too.
+(Parentheses) and [brackets] and {braces} are punctuation.
+Is it 50% off, or only 25%?
+No terminal punctuation here
