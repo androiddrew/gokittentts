@@ -2,7 +2,7 @@
 
 Self-hosted, OpenAI-compatible text-to-speech in Go, running the [KittenTTS](https://github.com/KittenML/KittenTTS) 0.8 ONNX models through [onnxruntime_go](https://github.com/yalue/onnxruntime_go).
 
-See [SPEC.md](SPEC.md) for the full design: the model contract, the text pipeline, the HTTP API, deployment, the performance targets and the milestones.
+See [the specification](.scratch/gokittentts/spec.md) for the full design: the user stories, the decisions, the test seams and the milestones. [docs/ORIGINAL_SPEC.md](docs/ORIGINAL_SPEC.md) keeps the reference detail (model hashes, the symbol table, the ONNX Runtime calls).
 
 Pinned versions: `github.com/yalue/onnxruntime_go` v1.36.0 with ONNX Runtime 1.29.1. Always point the program at the versioned `libonnxruntime.so.1.29.1`, not the `libonnxruntime.so` symlink.
 
@@ -54,7 +54,7 @@ make image-cuda12        # or image-cuda13; both bake and default to nano-fp32
 docker run --gpus all -p 8880:8880 gokittentts:cuda12
 ```
 
-For a plain binary, use the `gpu_cuda12` (or `gpu_cuda13`) ONNX Runtime archive, provide CUDA and cuDNN 9, and set `device: cuda` for the model in `config.yaml`. The GPU only speeds up nano-fp32 significantly. The int8 models keep their quantized ops on the CPU (see SPEC.md section 11.4).
+For a plain binary, use the `gpu_cuda12` (or `gpu_cuda13`) ONNX Runtime archive, provide CUDA and cuDNN 9, and set `device: cuda` for the model in `config.yaml`. The GPU only speeds up nano-fp32 significantly. The int8 models keep their quantized ops on the CPU (see [docs/ORIGINAL_SPEC.md](docs/ORIGINAL_SPEC.md) section 11.4).
 
 ## Use it
 

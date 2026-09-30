@@ -139,6 +139,7 @@ The Go port must reproduce these steps from [`kittentts/onnx_model.py`](https://
 3. **Chunk.** `chunk_text(text, max_len=400)` splits on `.`, `!` or `?` followed by whitespace or end of text. It skips abbreviations, decimals like `3.5` and `a.m.`/`p.m.`. Sentences over 400 characters are split at word boundaries. `ensure_punctuation` appends `,` to any chunk not ending in `.!?,;:`. gokittentts also splits a first chunk over 120 characters at its first comma, to meet the time-to-first-audio target (section 12). This is a recorded deviation.
 4. **Phonemize.** Use phonemizer's `EspeakBackend(language="en-us", preserve_punctuation=True, with_stress=True)`, which produces espeak-ng IPA with stress marks.
     - Punctuation from the set `;:,.!?¡¿—…"«»“”(){}[]` is stripped before espeak and re-inserted after. **Exception:** `.` and `,` are not punctuation when they sit between two digits, so `3.5` reaches espeak whole and is read "three point five".
+    - **The reference is upstream `phonemizer` ≥ 3.4.0**, the package `main` depends on. The released 0.8.1 wheel doesn't list `phonemizer`; it gets `phonemizer-fork` 3.3.2 transitively through its (unused) `misaki[en]` dependency. That fork lacks the decimal exception: on `$3.5 million, or 1,500 dollars.` it produces "θɹˈiː.fˈaɪv" and "wˈʌn,fˈaɪvhˈʌndɹɪd", where 3.4.0 produces "θɹˈiː pɔɪnt fˈaɪv" and "wˈʌn θˈaʊzənd fˈaɪvhˈʌndɹɪd" (checked 2026-09-30). gokittentts deliberately follows 3.4.0. With normalization on, digits are already words, so the difference only shows up with `normalize: false`.
     - Verified with espeak-ng 1.51: `Hello, world! This high-quality TTS model runs without a GPU.` becomes `həlˈoʊ, wˈɜːld! ðɪs hˈaɪkwˈɔlᵻɾi tˌiːtˌiːˈɛs mˈɑːdəl ɹˈʌnz wɪðˌaʊt ɐ dʒˌiːpˌiːjˈuː.`
 5. **Re-tokenize.** Python `re.findall(r"\w+|[^\w\s]", phonemes)`, joined with single spaces.
 6. **Map to ids.** The symbol list is `$`, then `;:,.!?¡¿—…"«»"" ` (16 chars including a trailing space), then `A–Z`, `a–z`, then a fixed IPA string. The dict lets later duplicates overwrite earlier ones: 178 positions, 175 unique symbols, and `"` ends at id 14. Characters not in the dict are **silently dropped**. The result is wrapped as `[0] + ids + [10, 0]`; id 10 is `…`.
@@ -628,6 +629,7 @@ Tests needing native libraries or models use a build tag (`//go:build native`) s
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
 | espeak-ng version drift (Debian, Homebrew and the dev machine may differ) | Phonemes and ids change | Record the espeak-ng version in `golden.json`; the images pin the distro package; regenerate the goldens on upgrade |
+| Reference drift between `phonemizer` and `phonemizer-fork` | The released 0.8.1 wheel phonemizes decimals differently from `main`; goldens made from the wheel would encode the fork's behavior | Goldens use upstream `phonemizer` ≥ 3.4.0 and record its version; `make_golden.py` refuses to run with the fork |
 | Bundled Python `espeakng_loader` data path is broken | The Python reference fails with "phontab: No such file" | `make_golden.py` points phonemizer at the system `libespeak-ng.so.1` |
 | onnxruntime_go and ONNX Runtime drift | Crashes or missing symbols | Pin both; check `ort.GetVersion()` at startup |
 | Normalizer port size (about 1,200 lines of Python regex) | Slow milestone 4; RE2 can't express lookarounds | The corpus and golden files catch regressions; lookaround cases are rewritten as match plus check |
@@ -653,10 +655,22 @@ Opened 2026-09-30.
 
 ## Appendix A: golden-vector script
 
-`scripts/make_golden.py`, run through `make golden` (`uv run --no-project --with phonemizer python3 scripts/make_golden.py`). It expects KittenTTS's `onnx_model.py` and `preprocess.py` copied next to it as `onnx_model_ref.py` and `preprocess_ref.py`, pinned to the 0.8.1 tag. The normalizer golden extends it with `pp.normalize_text(line)` over `testdata/normalize_corpus.txt`.
+`scripts/make_golden.py`, run through `make golden` (`uv run --no-project --with "phonemizer>=3.4.0" python3 scripts/make_golden.py`). Never generate goldens with `phonemizer-fork` or by installing the `kittentts` wheel, which pulls the fork in through `misaki[en]` (section 4, step 4); the script refuses to run if it detects the fork. It expects KittenTTS's `onnx_model.py` and `preprocess.py` copied next to it as `onnx_model_ref.py` and `preprocess_ref.py`, pinned to the 0.8.1 tag. The normalizer golden extends it with `pp.normalize_text(line)` over `testdata/normalize_corpus.txt`.
 
 ```python
 import json, re
+import importlib.metadata as md
+
+# The reference is upstream phonemizer >= 3.4.0; phonemizer-fork splits decimals ("3.5" -> "three . five").
+try:
+    md.version("phonemizer-fork")
+    raise SystemExit("phonemizer-fork is installed; use upstream phonemizer>=3.4.0 for goldens")
+except md.PackageNotFoundError:
+    pass
+_v = tuple(int(x) for x in md.version("phonemizer").split(".")[:2])
+if _v < (3, 4):
+    raise SystemExit(f"phonemizer {md.version('phonemizer')} < 3.4.0 lacks the decimal-separator rule")
+
 from phonemizer.backend.espeak.wrapper import EspeakWrapper
 EspeakWrapper.set_library("/usr/lib/x86_64-linux-gnu/libespeak-ng.so.1")
 import phonemizer
@@ -678,6 +692,7 @@ for line in open("testdata/sentences.txt"):
         out.append({"chunk": chunk, "phonemes": ph,
                     "ids": [0] + tc(toks) + [10, 0],
                     "ref_id": min(len(chunk), 399),
-                    "espeak": ".".join(map(str, b.version()))})
+                    "espeak": ".".join(map(str, b.version())),
+                    "phonemizer": md.version("phonemizer")})
 json.dump(out, open("testdata/golden.json", "w"), ensure_ascii=False, indent=1)
 ```
