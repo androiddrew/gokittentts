@@ -528,7 +528,7 @@ Errors use OpenAI's shape: `{"error": {"message", "type", "param", "code"}}`.
 | `gokittentts:cuda12` | linux/amd64 | `nvidia/cuda:12.x-cudnn-runtime-ubuntu24.04` + `espeak-ng`, `ffmpeg` | `gpu_cuda12` 1.29.1 | `kitten-tts-nano-0.8-fp32` | nano-fp32 |
 | `gokittentts:cuda13` | linux/amd64 | `nvidia/cuda:13.x-cudnn-runtime-ubuntu24.04` + `espeak-ng`, `ffmpeg` | `gpu_cuda13` 1.29.1 | `kitten-tts-nano-0.8-fp32` | nano-fp32 |
 
-- The build is multi-stage. A `golang:1.26` builder with `libespeak-ng-dev` runs `CGO_ENABLED=1 go build`. The runtime stage copies the binary, the ONNX Runtime `lib/` (with the `providers_*.so` files for CUDA) and `docker/config.yaml`.
+- The build is multi-stage. A `golang:1.26` builder with `libespeak-ng-dev` runs `CGO_ENABLED=1 go build -tags espeak`. The runtime stage copies the binary, the ONNX Runtime `lib/` (with the `providers_*.so` files for CUDA) and `docker/config.yaml`.
 - `BAKE_MODELS` is a comma-separated list, and an empty value gives a slim image. The build stage runs `gokittentts pull $BAKE_MODELS --dir /var/lib/gokittentts/models`, which uses the same manifest and SHA-256 checks as run-time downloads.
 - Models not baked in are downloaded on first use into `/var/lib/gokittentts/models`. Mount that path as a volume so they persist.
 - A Pi 5 build sets both: `make image-cpu BAKE_MODELS=kitten-tts-nano-0.8-fp32`, and `KITTEN_DEFAULT_MODEL=kitten-tts-nano-0.8-fp32` at run time.
@@ -554,7 +554,7 @@ docker run --gpus all -p 8880:8880 gokittentts:cuda12
 - **Linux.**
     1. `apt install espeak-ng libespeak-ng-dev ffmpeg`.
     2. Unpack the matching ONNX Runtime archive.
-    3. Run `CGO_ENABLED=1 go build ./cmd/gokittentts`.
+    3. Run `CGO_ENABLED=1 go build -tags espeak ./cmd/gokittentts`. Without `-tags espeak` the binary is built without espeak-ng and fails at startup.
     4. Set `onnxruntime_lib` in the config.
 - **macOS arm64 (best effort, CPU only, not in CI).**
     1. `brew install espeak-ng ffmpeg`.

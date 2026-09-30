@@ -19,7 +19,6 @@ import "C"
 
 import (
 	"errors"
-	"regexp"
 	"strings"
 	"sync"
 	"unsafe"
@@ -63,14 +62,6 @@ func Version() string {
 	return C.GoString(C.espeak_Info(nil))
 }
 
-// phonemizer asks for "_" between phonemes, then removes it.
-const phonemeMode = C.espeakPHONEMES_IPA | '_'<<8
-
-var (
-	underscores     = regexp.MustCompile(`_+`)
-	underscoreSpace = regexp.MustCompile(`_ `)
-)
-
 // Phonemize returns the IPA for text, one clause at a time joined by spaces,
 // with every word followed by a space, as phonemizer's EspeakBackend
 // (text_to_phonemes and _postprocess_line) produces it.
@@ -80,14 +71,12 @@ func (*Espeak) Phonemize(text string) (string, error) {
 	line = strings.TrimSpace(line)
 	line = strings.ReplaceAll(line, "\n", " ")
 	line = strings.ReplaceAll(line, "  ", " ")
-	line = underscores.ReplaceAllString(line, "_")
-	line = underscoreSpace.ReplaceAllString(line, " ")
 	if line == "" {
 		return "", nil
 	}
 	var sb strings.Builder
 	for word := range strings.SplitSeq(line, " ") {
-		sb.WriteString(strings.ReplaceAll(strings.TrimSpace(word), "_", ""))
+		sb.WriteString(strings.TrimSpace(word))
 		sb.WriteByte(' ')
 	}
 	return sb.String(), nil
@@ -101,7 +90,7 @@ func textToPhonemes(text string) string {
 	ptr := unsafe.Pointer(cs)
 	var clauses []string
 	for ptr != nil {
-		if ph := C.GoString(C.espeak_TextToPhonemes(&ptr, C.espeakCHARS_UTF8, phonemeMode)); ph != "" {
+		if ph := C.GoString(C.espeak_TextToPhonemes(&ptr, C.espeakCHARS_UTF8, C.espeakPHONEMES_IPA)); ph != "" {
 			clauses = append(clauses, ph)
 		}
 	}

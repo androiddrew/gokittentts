@@ -33,3 +33,8 @@ The pipeline covers the chunker port (`chunk_text` at 400 characters, `ensure_pu
 - **Library details.** `Request.Speed` of 0 means 1.0. `Normalize` and `Markdown` are accepted and ignored until tickets 10 and 11. `ModelConfig.Device` must be `""` or `cpu` until ticket 14. A process can open one `Engine`, because ONNX Runtime's environment is process-wide.
 - **Listening check.** Whisper (small.en) transcribes `say` output correctly, for example "Hello from Go!". It hears "1,500 dollars" as "$500", but the Python reference run with the same ids and style row gives the same transcript, so that is the mini model's delivery, not the port.
 
+**2026-09-30, follow-up**
+
+- The espeak backend now calls `espeak_TextToPhonemes` with plain `espeakPHONEMES_IPA`, as `docs/ORIGINAL_SPEC.md` §7 says. The `_` separator mode (and its clean-up) described above was copied from phonemizer but made no difference: the golden phoneme strings and ids match without it.
+- `docs/ORIGINAL_SPEC.md` §11.1 and §11.3 and the spec's Build tags paragraph now include `-tags espeak`.
+

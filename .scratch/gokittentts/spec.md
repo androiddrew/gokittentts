@@ -270,7 +270,7 @@ The phonemes and token ids match the Python reference token for token. Models ar
 
 Small leaf behaviors that can't be reached cleanly through a seam get small table tests of their own: voices-file header parsing, WAV/PCM byte layout, and an mp3 that decodes back to a plausible length.
 
-**Build tags.** `go test ./...` runs anywhere without native libraries. Tests needing ONNX Runtime, espeak-ng or models use `//go:build native`, and `make test-native` runs everything.
+**Build tags.** `go test ./...` runs anywhere without native libraries. Tests needing ONNX Runtime, espeak-ng or models use `//go:build native`, and `make test-native` runs everything. The cgo espeak-ng backend builds only with `-tags espeak` (or `native`), so every build of the binary passes `-tags espeak`; `make build` does.
 
 **Golden generation.** `make golden` runs the Python reference script with upstream `phonemizer` ≥ 3.4.0, and the script refuses to run if `phonemizer-fork` is present. It uses KittenTTS 0.8.1's `onnx_model.py` and `preprocess.py`, and points phonemizer at the system `libespeak-ng.so.1`.
 
