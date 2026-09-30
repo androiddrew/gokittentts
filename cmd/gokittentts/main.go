@@ -1,5 +1,6 @@
 // Command gokittentts is text-to-speech with the KittenTTS 0.8 models.
 //
+//	gokittentts serve [--config /etc/gokittentts/config.yaml]
 //	gokittentts say --onnxruntime-lib <libonnxruntime.so.1.29.1> [--voice Bruno] [--out out.wav] "Hello from Go."
 package main
 
@@ -8,18 +9,27 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/androiddrew/gokittentts/internal/audio"
+	"github.com/androiddrew/gokittentts/internal/config"
+	"github.com/androiddrew/gokittentts/internal/server"
 	"github.com/androiddrew/gokittentts/kittentts"
 )
 
 const usage = `usage: gokittentts <command> [flags]
 
 commands:
-  say   synthesize text to a WAV file
+  serve  serve the OpenAI-compatible HTTP API
+  say    synthesize text to a WAV file
 `
 
 func main() {
@@ -29,6 +39,8 @@ func main() {
 	}
 	var err error
 	switch os.Args[1] {
+	case "serve":
+		err = serve(os.Args[2:])
 	case "say":
 		err = say(os.Args[2:])
 	case "-h", "-help", "--help", "help":
@@ -45,6 +57,67 @@ func main() {
 		fmt.Fprintln(os.Stderr, "gokittentts:", err)
 		os.Exit(1)
 	}
+}
+
+func serve(args []string) error {
+	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
+	configPath := fs.String("config", "/etc/gokittentts/config.yaml", "config file")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	cfg, err := config.Load(*configPath)
+	if err != nil {
+		return err
+	}
+	if cfg.ONNXRuntimeLib == "" {
+		return fmt.Errorf("%s: onnxruntime_lib is required", *configPath)
+	}
+
+	var models []kittentts.ModelConfig
+	for name, m := range cfg.Models {
+		models = append(models, kittentts.ModelConfig{
+			Name:           name,
+			Dir:            filepath.Join(cfg.ModelsDir, name),
+			Device:         m.Device,
+			CUDADeviceID:   m.CUDADeviceID,
+			IntraOpThreads: m.IntraOpThreads,
+		})
+	}
+	engine, err := kittentts.NewEngine(cfg.ONNXRuntimeLib, models)
+	if err != nil {
+		return err
+	}
+	ln, err := net.Listen("tcp", cfg.Listen)
+	if err != nil {
+		engine.Close()
+		return err
+	}
+	srv := &http.Server{
+		Handler:           server.New(cfg, server.KittenEngine{Engine: engine}),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	errc := make(chan error, 1)
+	go func() { errc <- srv.Serve(ln) }()
+	slog.Info("listening", "addr", ln.Addr().String(), "default_model", cfg.DefaultModel)
+
+	select {
+	case err := <-errc:
+		engine.Close()
+		return err
+	case <-ctx.Done():
+	}
+	stop() // a second signal now kills the process
+	slog.Info("shutting down")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		// Requests may still be synthesizing, so the engine stays open; the
+		// process is exiting anyway.
+		return err
+	}
+	return engine.Close()
 }
 
 func say(args []string) error {

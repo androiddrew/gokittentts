@@ -7,8 +7,7 @@ import (
 	"math"
 )
 
-// WriteWAV writes mono 16-bit PCM WAV. Samples are clipped to [-1, 1] and
-// scaled by 32767.
+// WriteWAV writes mono 16-bit PCM WAV, with samples encoded as by PCM16.
 func WriteWAV(w io.Writer, samples []float32, sampleRate int) error {
 	dataLen := uint32(len(samples) * 2)
 	le := binary.LittleEndian
@@ -26,10 +25,21 @@ func WriteWAV(w io.Writer, samples []float32, sampleRate int) error {
 	b = le.AppendUint16(b, 16)                   // bits per sample
 	b = append(b, "data"...)
 	b = le.AppendUint32(b, dataLen)
-	for _, s := range samples {
-		s = max(-1, min(1, s))
-		b = le.AppendUint16(b, uint16(int16(math.Round(float64(s)*32767))))
-	}
+	b = appendPCM16(b, samples)
 	_, err := w.Write(b)
 	return err
+}
+
+// PCM16 encodes samples as raw 16-bit little-endian PCM, OpenAI's pcm format.
+// Samples are clipped to [-1, 1] and scaled by 32767.
+func PCM16(samples []float32) []byte {
+	return appendPCM16(make([]byte, 0, len(samples)*2), samples)
+}
+
+func appendPCM16(b []byte, samples []float32) []byte {
+	for _, s := range samples {
+		s = max(-1, min(1, s))
+		b = binary.LittleEndian.AppendUint16(b, uint16(int16(math.Round(float64(s)*32767))))
+	}
+	return b
 }

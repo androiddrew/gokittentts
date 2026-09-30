@@ -108,6 +108,21 @@ func TestVoices(t *testing.T) {
 	}
 }
 
+// The static Voices table must agree with every model's config.json.
+func TestVoicesTableMatchesModels(t *testing.T) {
+	for _, name := range models {
+		m := mustModel(t, name)
+		for _, v := range kittentts.Voices {
+			if key, err := kittentts.VoiceKey(m, v.Name); err != nil || key != v.Key {
+				t.Errorf("%s: %s resolves to %q (%v), want %s", name, v.Name, key, err, v.Key)
+			}
+		}
+		if len(m.Voices()) != len(kittentts.Voices) {
+			t.Errorf("%s has %d voices, the table %d", name, len(m.Voices()), len(kittentts.Voices))
+		}
+	}
+}
+
 func TestWaveformLengthMatchesDurations(t *testing.T) {
 	for _, name := range models {
 		wave, durations, err := kittentts.RunChunk(mustModel(t, name), "Hello from Go.", "Bruno")
