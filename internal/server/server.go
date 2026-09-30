@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os/exec"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -42,23 +43,42 @@ const (
 	maxSpeed = 4.0
 )
 
-// formats are the supported response formats and their content types.
-var formats = map[string]string{
-	"wav": "audio/wav",
-	"pcm": "audio/pcm",
+// format is a response format.
+type format struct {
+	contentType string
+	ffmpeg      bool // encoded by piping through ffmpeg
 }
 
-// defaultFormat is wav until the mp3 encoder lands; OpenAI's default is mp3.
-const defaultFormat = "wav"
+var formats = map[string]format{
+	"mp3":  {"audio/mpeg", false},
+	"wav":  {"audio/wav", false},
+	"pcm":  {"audio/pcm", false},
+	"opus": {"audio/ogg", true},
+	"aac":  {"audio/aac", true},
+	"flac": {"audio/flac", true},
+}
+
+// defaultFormat is OpenAI's default.
+const defaultFormat = "mp3"
 
 type server struct {
 	cfg    *config.Config
 	engine Engine
+	ffmpeg string // resolved path, or empty when ffmpeg is disabled or missing
 }
 
-// New returns the HTTP handler for cfg, synthesizing with engine.
+// New returns the HTTP handler for cfg, synthesizing with engine. If cfg's
+// ffmpeg can't be found, opus, aac and flac are rejected.
 func New(cfg *config.Config, engine Engine) http.Handler {
 	s := &server{cfg: cfg, engine: engine}
+	if cfg.FFmpeg != "" {
+		// LookPath can return a path alongside exec.ErrDot; that path is not used.
+		if path, err := exec.LookPath(cfg.FFmpeg); err != nil {
+			slog.Warn("ffmpeg not found; opus, aac and flac are disabled", "ffmpeg", cfg.FFmpeg, "err", err)
+		} else {
+			s.ffmpeg = path
+		}
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /v1/audio/speech", s.speech)
 	mux.HandleFunc("GET /v1/voices", s.voices)
@@ -116,10 +136,14 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 	if format == "" {
 		format = defaultFormat
 	}
-	contentType, ok := formats[format]
-	if !ok {
+	f, ok := formats[format]
+	if !ok || f.ffmpeg && s.ffmpeg == "" {
+		reason := "is not supported"
+		if ok {
+			reason = "needs ffmpeg, which is not available"
+		}
 		writeError(w, http.StatusBadRequest, invalidRequest, "response_format",
-			fmt.Sprintf("response_format %q is not supported; supported formats are %s", format, strings.Join(sortedKeys(formats), ", ")))
+			fmt.Sprintf("response_format %q %s; supported formats are %s", format, reason, strings.Join(s.supportedFormats(), ", ")))
 		return
 	}
 
@@ -154,20 +178,35 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var body []byte
-	switch format {
-	case "wav":
-		var buf bytes.Buffer
-		if err := audio.WriteWAV(&buf, pcm, kittentts.SampleRate); err != nil {
-			writeError(w, http.StatusInternalServerError, serverError, "", err.Error())
-			return
-		}
-		body = buf.Bytes()
-	case "pcm":
-		body = audio.PCM16(pcm)
+	var buf bytes.Buffer
+	switch {
+	case format == "mp3":
+		err = audio.WriteMP3(&buf, pcm, kittentts.SampleRate)
+	case format == "wav":
+		err = audio.WriteWAV(&buf, pcm, kittentts.SampleRate)
+	case format == "pcm":
+		buf.Write(audio.PCM16(pcm))
+	case f.ffmpeg:
+		err = audio.EncodeFFmpeg(r.Context(), &buf, s.ffmpeg, pcm, kittentts.SampleRate, format)
 	}
-	w.Header().Set("Content-Type", contentType)
-	w.Write(body)
+	if err != nil {
+		slog.Error("encoding failed", "format", format, "err", err)
+		writeError(w, http.StatusInternalServerError, serverError, "", "encoding "+format+" failed: "+err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", f.contentType)
+	w.Write(buf.Bytes())
+}
+
+// supportedFormats lists the response formats this server can produce.
+func (s *server) supportedFormats() []string {
+	var names []string
+	for _, name := range sortedKeys(formats) {
+		if !formats[name].ffmpeg || s.ffmpeg != "" {
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 // decode reads exactly one JSON object from a body capped at a size that

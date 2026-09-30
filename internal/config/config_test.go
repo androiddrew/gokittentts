@@ -26,6 +26,7 @@ voices:
 speed: { min: 0.75, max: 1.5 }
 limits:
   max_input_chars: 100
+ffmpeg: /usr/local/bin/ffmpeg
 `
 
 func TestParse(t *testing.T) {
@@ -45,6 +46,19 @@ func TestParse(t *testing.T) {
 	}
 	if c.Speed.Min != 0.75 || c.Speed.Max != 1.5 || c.Limits.MaxInputChars != 100 {
 		t.Errorf("speed %+v, limits %+v", c.Speed, c.Limits)
+	}
+	if c.FFmpeg != "/usr/local/bin/ffmpeg" {
+		t.Errorf("ffmpeg %q", c.FFmpeg)
+	}
+}
+
+func TestFFmpegCanBeDisabled(t *testing.T) {
+	c, err := config.Parse([]byte("models:\n  kitten-tts-mini-0.8: {}\nffmpeg: \"\"\n"), noEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.FFmpeg != "" {
+		t.Errorf("ffmpeg %q, want empty", c.FFmpeg)
 	}
 }
 
@@ -66,6 +80,9 @@ func TestParseDefaults(t *testing.T) {
 	}
 	if c.Voices["alloy"] != "Bella" || c.Voices["onyx"] != "Hugo" || len(c.Voices) != 13 {
 		t.Errorf("default voice map %v", c.Voices)
+	}
+	if c.FFmpeg != "ffmpeg" {
+		t.Errorf("ffmpeg %q, want ffmpeg", c.FFmpeg)
 	}
 }
 

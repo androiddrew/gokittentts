@@ -38,8 +38,13 @@ func PCM16(samples []float32) []byte {
 
 func appendPCM16(b []byte, samples []float32) []byte {
 	for _, s := range samples {
-		s = max(-1, min(1, s))
-		b = binary.LittleEndian.AppendUint16(b, uint16(int16(math.Round(float64(s)*32767))))
+		b = binary.LittleEndian.AppendUint16(b, uint16(int16Sample(s)))
 	}
 	return b
+}
+
+// int16Sample clips s to [-1, 1] and scales it by 32767.
+func int16Sample(s float32) int16 {
+	s = max(-1, min(1, s))
+	return int16(math.Round(float64(s) * 32767))
 }

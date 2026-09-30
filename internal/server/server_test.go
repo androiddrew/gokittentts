@@ -1,15 +1,21 @@
 package server_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
+	"os/exec"
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/hajimehoshi/go-mp3"
 
 	"github.com/androiddrew/gokittentts/internal/config"
 	"github.com/androiddrew/gokittentts/internal/server"
@@ -63,11 +69,17 @@ model_aliases:
   tts-1-hd: kitten-tts-nano-0.8-fp32
 limits:
   max_input_chars: 20
+ffmpeg: ""
 `
 
 func newServer(t *testing.T) (http.Handler, *fakeEngine) {
 	t.Helper()
-	cfg, err := config.Parse([]byte(testConfig), func(string) string { return "" })
+	return newServerWithConfig(t, testConfig)
+}
+
+func newServerWithConfig(t *testing.T, yaml string) (http.Handler, *fakeEngine) {
+	t.Helper()
+	cfg, err := config.Parse([]byte(yaml), func(string) string { return "" })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,24 +140,22 @@ func TestSpeechPCM(t *testing.T) {
 
 func TestSpeechWAV(t *testing.T) {
 	h, _ := newServer(t)
-	for _, format := range []string{`,"response_format":"wav"`, ``} { // wav is the default until mp3 lands
-		rec := speech(t, h, `{"model":"tts-1","input":"Hello.","voice":"alloy"`+format+`}`)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("status %d: %s", rec.Code, rec.Body)
-		}
-		if ct := rec.Header().Get("Content-Type"); ct != "audio/wav" {
-			t.Errorf("Content-Type %q, want audio/wav", ct)
-		}
-		b := rec.Body.Bytes()
-		if len(b) != 44+6 || string(b[:4]) != "RIFF" || string(b[8:12]) != "WAVE" {
-			t.Fatalf("not a 3-sample WAV: %x", b)
-		}
-		if got := hex.EncodeToString(b[22:24]) + hex.EncodeToString(b[24:28]) + hex.EncodeToString(b[34:36]); got != "0100"+"c05d0000"+"1000" {
-			t.Errorf("channels, rate, bits = %s, want mono, 24000 Hz, 16-bit", got)
-		}
-		if got := hex.EncodeToString(b[44:]); got != "0000004000c0" {
-			t.Errorf("samples %s, want 0000004000c0", got)
-		}
+	rec := speech(t, h, `{"model":"tts-1","input":"Hello.","voice":"alloy","response_format":"wav"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "audio/wav" {
+		t.Errorf("Content-Type %q, want audio/wav", ct)
+	}
+	b := rec.Body.Bytes()
+	if len(b) != 44+6 || string(b[:4]) != "RIFF" || string(b[8:12]) != "WAVE" {
+		t.Fatalf("not a 3-sample WAV: %x", b)
+	}
+	if got := hex.EncodeToString(b[22:24]) + hex.EncodeToString(b[24:28]) + hex.EncodeToString(b[34:36]); got != "0100"+"c05d0000"+"1000" {
+		t.Errorf("channels, rate, bits = %s, want mono, 24000 Hz, 16-bit", got)
+	}
+	if got := hex.EncodeToString(b[44:]); got != "0000004000c0" {
+		t.Errorf("samples %s, want 0000004000c0", got)
 	}
 }
 
@@ -302,15 +312,96 @@ func TestInputReachesTheEngine(t *testing.T) {
 	}
 }
 
-func TestUnsupportedFormats(t *testing.T) {
-	h, _ := newServer(t)
-	for _, format := range []string{"mp3", "opus", "aac", "flac", "ogg"} {
-		e := openAIError(t, speech(t, h, `{"model":"tts-1","input":"Hi.","voice":"Leo","response_format":"`+format+`"}`), http.StatusBadRequest)
-		if msg := e["message"].(string); e["param"] != "response_format" || !strings.Contains(msg, "wav") || !strings.Contains(msg, "pcm") {
-			t.Errorf("%s: error %v, want param response_format naming wav and pcm", format, e)
+func TestSpeechMP3IsTheDefault(t *testing.T) {
+	h, eng := newServer(t)
+	eng.pcm = make([]float32, kittentts.SampleRate/2)
+	for _, format := range []string{``, `,"response_format":"mp3"`} {
+		rec := speech(t, h, `{"model":"tts-1","input":"Hello.","voice":"alloy"`+format+`}`)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status %d: %s", rec.Code, rec.Body)
+		}
+		if ct := rec.Header().Get("Content-Type"); ct != "audio/mpeg" {
+			t.Errorf("Content-Type %q, want audio/mpeg", ct)
+		}
+		dec, err := mp3.NewDecoder(rec.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		decoded, err := io.ReadAll(dec)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// 16-bit stereo; the encoder pads to whole frames and flushes its delay.
+		if n := len(decoded) / 4; n < len(eng.pcm) || n > len(eng.pcm)+4*576 {
+			t.Errorf("mp3 decodes to %d samples, want about %d", n, len(eng.pcm))
 		}
 	}
-	e := openAIError(t, speech(t, h, `{"model":"tts-1","input":"Hi.","voice":"Leo","stream_format":"sse"}`), http.StatusBadRequest)
+}
+
+func TestFFmpegFormatsWithoutFFmpeg(t *testing.T) {
+	disabled := testConfig
+	missing := strings.Replace(testConfig, `ffmpeg: ""`, `ffmpeg: /nonexistent/ffmpeg`, 1)
+	for name, cfg := range map[string]string{"disabled": disabled, "not found": missing} {
+		h, eng := newServerWithConfig(t, cfg)
+		for _, format := range []string{"opus", "aac", "flac"} {
+			e := openAIError(t, speech(t, h, `{"model":"tts-1","input":"Hi.","voice":"Leo","response_format":"`+format+`"}`), http.StatusBadRequest)
+			msg := e["message"].(string)
+			if e["param"] != "response_format" || !strings.Contains(msg, "ffmpeg") || !strings.Contains(msg, "mp3, pcm, wav") {
+				t.Errorf("%s, %s: error %v, want param response_format naming ffmpeg and mp3, pcm, wav", name, format, e)
+			}
+		}
+		if n := eng.count(); n != 0 {
+			t.Errorf("%s: the engine ran %d times for rejected formats", name, n)
+		}
+	}
+}
+
+func TestFFmpegFormats(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg is not installed")
+	}
+	h, eng := newServerWithConfig(t, strings.Replace(testConfig, `ffmpeg: ""`, `ffmpeg: ffmpeg`, 1))
+	eng.pcm = make([]float32, kittentts.SampleRate/2)
+	for i := range eng.pcm {
+		eng.pcm[i] = 0.5 * float32(math.Sin(2*math.Pi*440*float64(i)/kittentts.SampleRate))
+	}
+	for _, tc := range []struct{ format, contentType, magic string }{
+		{"opus", "audio/ogg", "OggS"},
+		{"aac", "audio/aac", "\xff"},
+		{"flac", "audio/flac", "fLaC"},
+	} {
+		rec := speech(t, h, `{"model":"tts-1","input":"Hi.","voice":"Leo","response_format":"`+tc.format+`"}`)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: status %d: %s", tc.format, rec.Code, rec.Body)
+		}
+		if ct := rec.Header().Get("Content-Type"); ct != tc.contentType {
+			t.Errorf("%s: Content-Type %q, want %s", tc.format, ct, tc.contentType)
+		}
+		if !bytes.HasPrefix(rec.Body.Bytes(), []byte(tc.magic)) {
+			t.Errorf("%s: body starts % x, want %q", tc.format, rec.Body.Bytes()[:min(4, rec.Body.Len())], tc.magic)
+		}
+		// Playable: ffmpeg decodes it back to about half a second, give or
+		// take encoder priming and padding (aac adds up to two 1024-sample frames).
+		cmd := exec.Command(ffmpeg, "-v", "error", "-i", "-", "-f", "s16le", "-ac", "1", "-ar", "24000", "-")
+		cmd.Stdin = bytes.NewReader(rec.Body.Bytes())
+		pcm, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("%s: decoding: %v", tc.format, err)
+		}
+		if n := len(pcm) / 2; n < len(eng.pcm)*9/10 || n > len(eng.pcm)+2*1024 {
+			t.Errorf("%s: decodes to %d samples, want about %d", tc.format, n, len(eng.pcm))
+		}
+	}
+}
+
+func TestUnsupportedFormats(t *testing.T) {
+	h, _ := newServer(t)
+	e := openAIError(t, speech(t, h, `{"model":"tts-1","input":"Hi.","voice":"Leo","response_format":"ogg"}`), http.StatusBadRequest)
+	if msg := e["message"].(string); e["param"] != "response_format" || !strings.Contains(msg, "mp3, pcm, wav") {
+		t.Errorf("ogg: error %v, want param response_format naming mp3, pcm, wav", e)
+	}
+	e = openAIError(t, speech(t, h, `{"model":"tts-1","input":"Hi.","voice":"Leo","stream_format":"sse"}`), http.StatusBadRequest)
 	if e["param"] != "stream_format" {
 		t.Errorf("sse: error %v", e)
 	}

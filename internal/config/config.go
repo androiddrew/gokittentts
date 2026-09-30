@@ -16,7 +16,7 @@ import (
 const DefaultAlias = "default"
 
 // Config is the whole config file. Fields that later features read (download,
-// ffmpeg, request timeouts and so on) are ignored until those features land.
+// request timeouts and so on) are ignored until those features land.
 type Config struct {
 	Listen         string            `yaml:"listen"`
 	ONNXRuntimeLib string            `yaml:"onnxruntime_lib"`
@@ -27,6 +27,7 @@ type Config struct {
 	Voices         map[string]string `yaml:"voices"`        // OpenAI voice name -> Kitten voice name
 	Speed          SpeedRange        `yaml:"speed"`
 	Limits         Limits            `yaml:"limits"`
+	FFmpeg         string            `yaml:"ffmpeg"` // path or name on PATH; empty disables opus, aac and flac
 }
 
 // Model is one entry under models.
@@ -70,6 +71,7 @@ func Parse(data []byte, getenv func(string) string) (*Config, error) {
 		DefaultModel: "kitten-tts-mini-0.8",
 		Speed:        SpeedRange{Min: 0.5, Max: 2.0},
 		Limits:       Limits{MaxInputChars: 4096},
+		FFmpeg:       "ffmpeg",
 	}
 	if err := yaml.Unmarshal(data, &c); err != nil {
 		return nil, fmt.Errorf("config: %w", err)
