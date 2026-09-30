@@ -1,69 +1,68 @@
-# Golang Onnx
+# gokittentts
 
-An example repo trying to run the Kitten TTS onnx model using golang
+Self-hosted, OpenAI-compatible text-to-speech in Go, running the [KittenTTS](https://github.com/KittenML/KittenTTS) 0.8 ONNX models through [onnxruntime_go](https://github.com/yalue/onnxruntime_go).
 
-See [SPEC.md](SPEC.md) for the full design: the model contract, the text-to-token pipeline that must be ported from Python, and the onnxruntime_go usage.
+See [SPEC.md](SPEC.md) for the full design: the model contract, the text pipeline, the HTTP API, deployment, the performance targets and the milestones.
 
-Pinned versions: `github.com/yalue/onnxruntime_go` v1.36.0 with ONNX Runtime 1.29.1. Always pass the versioned `libonnxruntime.so.1.29.1`, not the `libonnxruntime.so` symlink.
+Pinned versions: `github.com/yalue/onnxruntime_go` v1.36.0 with ONNX Runtime 1.29.1. Always point the program at the versioned `libonnxruntime.so.1.29.1`, not the `libonnxruntime.so` symlink.
 
-## Other model sizes
+## Models
 
-The same binary runs all four KittenTTS 0.8 models. To switch, download a different repo into its own directory and pass `-model-dir`:
+| Model | Size | CPU (Ryzen 5 5600X) | GPU (RTX 4090) | Default in |
+| --- | --- | --- | --- | --- |
+| `kitten-tts-mini-0.8` | 78 MB | 2.82 s | 1.79 s | CPU image |
+| `kitten-tts-micro-0.8` | 41 MB | 1.77 s | 1.03 s | |
+| `kitten-tts-nano-0.8-int8` | 24 MB | 1.76 s | 0.91 s | |
+| `kitten-tts-nano-0.8-fp32` | 57 MB | 0.27 s | 0.06 s | CUDA images, Raspberry Pi 5 |
 
-```bash
-M=kitten-tts-nano-0.8-fp32   # or kitten-tts-micro-0.8, kitten-tts-nano-0.8-int8
-for f in config.json voices.npz kitten_tts_nano_v0_8.onnx; do   # micro: kitten_tts_micro_v0_8.onnx
-  curl -L --create-dirs -o models/$M/$f https://huggingface.co/KittenML/$M/resolve/main/$f
-done
-```
-
-In the prototype, nano-fp32 was the fastest by far: 0.27 s on CPU and 0.06 s on GPU per sentence, versus 2.8 s and 1.8 s for mini. See "Model variants" in SPEC.md.
+Times are per sentence of about 5 s of audio. Any model not on disk is downloaded from Hugging Face on first use, pinned to a commit and checked against a SHA-256.
 
 ## CPU option
 
+Docker (linux/amd64 and linux/arm64):
+
 ```bash
-# espeak-ng provides the phonemes (linked through cgo)
-sudo apt install espeak-ng libespeak-ng-dev
-
-# ONNX Runtime 1.29.1, CPU build
-mkdir -p third_party
-curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.29.1/onnxruntime-linux-x64-1.29.1.tgz \
-  | tar xz -C third_party/
-
-# model files from Hugging Face
-for f in config.json kitten_tts_mini_v0_8.onnx voices.npz; do
-  curl -L --create-dirs -o models/kitten-tts-mini-0.8/$f \
-    https://huggingface.co/KittenML/kitten-tts-mini-0.8/resolve/main/$f
-done
-
-CGO_ENABLED=1 go build -o bin/ ./cmd/...
-bin/kitten-cli -device cpu \
-  -onnxruntime_lib third_party/onnxruntime-linux-x64-1.29.1/lib/libonnxruntime.so.1.29.1 \
-  -model-dir models/kitten-tts-mini-0.8 \
-  -text "Hello from Go." -voice Bruno -out out.wav
+make image-cpu                                   # bakes mini; BAKE_MODELS= for a slim image
+docker run -p 8880:8880 -v kitten-models:/var/lib/gokittentts/models gokittentts:cpu
 ```
 
-Expect a real-time factor of about 0.57 on CPU: 4.84 s of audio took 2.77 s in the prototype. Use `-threads` to tune the intra-op threads.
+Plain binary (Linux):
+
+```bash
+sudo apt install espeak-ng libespeak-ng-dev ffmpeg
+mkdir -p third_party
+curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.29.1/onnxruntime-linux-x64-1.29.1.tgz \
+  | tar xz -C third_party/                       # linux-aarch64 on arm64
+CGO_ENABLED=1 go build -o bin/gokittentts ./cmd/gokittentts
+bin/gokittentts say --onnxruntime-lib third_party/onnxruntime-linux-x64-1.29.1/lib/libonnxruntime.so.1.29.1 \
+  --voice Bruno --out out.wav "Hello from Go."
+```
+
+For a Raspberry Pi 5, bake nano-fp32 and make it the default:
+
+```bash
+make image-cpu BAKE_MODELS=kitten-tts-nano-0.8-fp32
+docker run -e KITTEN_DEFAULT_MODEL=kitten-tts-nano-0.8-fp32 -p 8880:8880 gokittentts:cpu
+```
 
 ## GPU option
 
-The same binary runs on an NVIDIA GPU when it is given the CUDA build of ONNX Runtime and `-device cuda`.
+The NVIDIA images need the NVIDIA Container Toolkit. CUDA 13 needs host driver 580 or newer.
 
 ```bash
-# ONNX Runtime 1.29.1, CUDA 12 build (keep the providers_*.so files next to libonnxruntime)
-curl -L https://github.com/microsoft/onnxruntime/releases/download/v1.29.1/onnxruntime-linux-x64-gpu_cuda12-1.29.1.tgz \
-  | tar xz -C third_party/
-
-# CUDA 12 + cuDNN 9 runtime libraries without sudo (skip if installed system-wide)
-uv venv .cuda && VIRTUAL_ENV=.cuda uv pip install "nvidia-cudnn-cu12>=9,<10" \
-  nvidia-cublas-cu12 nvidia-cuda-runtime-cu12 nvidia-curand-cu12 nvidia-cufft-cu12 \
-  nvidia-cusolver-cu12 nvidia-cusparse-cu12 nvidia-nvjitlink-cu12
-export LD_LIBRARY_PATH=$(ls -d $PWD/.cuda/lib/python3*/site-packages/nvidia/*/lib | paste -sd:)
-
-bin/kitten-cli -device cuda \
-  -onnxruntime_lib third_party/onnxruntime-linux-x64-gpu_cuda12-1.29.1/lib/libonnxruntime.so.1.29.1 \
-  -model-dir models/kitten-tts-mini-0.8 \
-  -text "Hello from Go." -voice Bruno -out out.wav
+make image-cuda12        # or image-cuda13; both bake and default to nano-fp32
+docker run --gpus all -p 8880:8880 gokittentts:cuda12
 ```
 
-Don't expect a large speed-up. The model is int8 dynamically quantized, and ONNX Runtime has no CUDA kernels for its `MatMulInteger`, `ConvInteger` and `DynamicQuantizeLSTM` nodes, so those stay on the CPU. On an RTX 4090 the GPU was only 1.55× faster than CPU (1.78 s vs 2.77 s). See the GPU section of SPEC.md for details.
+For a plain binary, use the `gpu_cuda12` (or `gpu_cuda13`) ONNX Runtime archive, provide CUDA and cuDNN 9, and set `device: cuda` for the model in `config.yaml`. The GPU only speeds up nano-fp32 significantly. The int8 models keep their quantized ops on the CPU (see SPEC.md section 11.4).
+
+## Use it
+
+```bash
+curl http://localhost:8880/v1/audio/speech \
+  -H "Content-Type: application/json" \
+  -d '{"model": "tts-1", "input": "Hello from gokittentts!", "voice": "nova", "response_format": "mp3"}' \
+  -o hello.mp3
+```
+
+Set `KITTEN_API_KEY` to require `Authorization: Bearer <key>`.
