@@ -1,0 +1,103 @@
+# syntax=docker/dockerfile:1
+#
+# The CPU image, for linux/amd64 and linux/arm64. Build it with `make image-cpu`.
+#
+#   BAKE_MODELS  comma-separated models to bake in, pulled with the manifest's
+#                SHA-256 checks; empty gives a slim image that downloads on
+#                first use
+#   VCS_REF      the gokittentts commit the binary is built from
+
+# The binary links this espeak-ng, and the phoneme goldens depend on its version.
+ARG ESPEAK_NG_VERSION=1.52.0+dfsg-5
+ARG ORT_VERSION=1.29.1
+
+FROM --platform=$BUILDPLATFORM golang:1.26-trixie AS src
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
+COPY . .
+
+# The cgo binary, cross-compiled for the target with Debian's cross toolchain.
+FROM src AS build
+ARG TARGETARCH
+ARG ESPEAK_NG_VERSION
+RUN set -eux; \
+	dpkg --add-architecture "$TARGETARCH"; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends \
+		"crossbuild-essential-$TARGETARCH" \
+		"libespeak-ng-dev:$TARGETARCH=$ESPEAK_NG_VERSION" \
+		"libespeak-ng1:$TARGETARCH=$ESPEAK_NG_VERSION"; \
+	rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+	set -eux; \
+	case "$TARGETARCH" in \
+		amd64) cc=x86_64-linux-gnu-gcc ;; \
+		arm64) cc=aarch64-linux-gnu-gcc ;; \
+		*) echo "unsupported TARGETARCH $TARGETARCH" >&2; exit 1 ;; \
+	esac; \
+	CGO_ENABLED=1 GOOS=linux GOARCH="$TARGETARCH" CC="$cc" \
+		go build -tags espeak -trimpath -buildvcs=false -o /out/gokittentts ./cmd/gokittentts
+
+# The baked models, pulled with the manifest's checks. They don't depend on
+# the target, so this stage runs on the build platform.
+FROM src AS models
+ARG BAKE_MODELS=kitten-tts-mini-0.8
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+	go build -o /usr/local/bin/gokittentts ./cmd/gokittentts
+RUN set -eux; \
+	mkdir /models; \
+	if [ -n "$BAKE_MODELS" ]; then gokittentts pull "$BAKE_MODELS" --dir /models; fi
+
+FROM --platform=$BUILDPLATFORM golang:1.26-trixie AS onnxruntime
+ARG TARGETARCH
+ARG ORT_VERSION
+ARG ORT_SHA256_amd64=a28d7d65acafc06fb0f416cb409998773f5314c7eebf77caf907812831cdfc67
+ARG ORT_SHA256_arm64=e53fc0cfb72e505031e06e13c651c1cb78424f39f15d304f47a3d5b907bcf9f2
+RUN set -eux; \
+	case "$TARGETARCH" in \
+		amd64) arch=x64; sum="$ORT_SHA256_amd64" ;; \
+		arm64) arch=aarch64; sum="$ORT_SHA256_arm64" ;; \
+		*) echo "unsupported TARGETARCH $TARGETARCH" >&2; exit 1 ;; \
+	esac; \
+	curl -fsSL -o /ort.tgz "https://github.com/microsoft/onnxruntime/releases/download/v$ORT_VERSION/onnxruntime-linux-$arch-$ORT_VERSION.tgz"; \
+	echo "$sum  /ort.tgz" | sha256sum -c -; \
+	mkdir /onnxruntime; \
+	tar xzf /ort.tgz --no-same-owner --strip-components=1 -C /onnxruntime
+
+FROM debian:trixie-slim
+ARG ESPEAK_NG_VERSION
+ARG ORT_VERSION
+ARG VCS_REF=unknown
+LABEL org.opencontainers.image.title="gokittentts" \
+	org.opencontainers.image.description="OpenAI-compatible text-to-speech with the KittenTTS 0.8 models, on the CPU" \
+	org.opencontainers.image.source="https://github.com/androiddrew/gokittentts" \
+	org.opencontainers.image.revision="$VCS_REF"
+RUN set -eux; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends \
+		"libespeak-ng1=$ESPEAK_NG_VERSION" \
+		"espeak-ng-data=$ESPEAK_NG_VERSION" \
+		ffmpeg \
+		ca-certificates; \
+	rm -rf /var/lib/apt/lists/*; \
+	useradd --uid 10001 --user-group --home-dir /var/lib/gokittentts --no-create-home --shell /usr/sbin/nologin gokittentts
+
+# Third-party licenses. Debian's packages keep theirs in /usr/share/doc/<package>/copyright.
+ARG LICENSES=/usr/share/doc/gokittentts/LICENSES
+COPY docker/LICENSES/ $LICENSES/
+COPY --from=onnxruntime /onnxruntime/LICENSE /onnxruntime/ThirdPartyNotices.txt $LICENSES/onnxruntime/
+RUN ln -s /usr/share/doc/ffmpeg/copyright "$LICENSES/ffmpeg-copyright" \
+	&& ln -s /usr/share/doc/libespeak-ng1/copyright "$LICENSES/espeak-ng-copyright"
+
+COPY --from=onnxruntime /onnxruntime/lib/libonnxruntime.so.$ORT_VERSION /opt/onnxruntime/lib/
+COPY docker/config.yaml /etc/gokittentts/config.yaml
+COPY --from=build /out/gokittentts /usr/local/bin/gokittentts
+# A named volume mounted here starts as a copy of the baked models.
+COPY --from=models --chown=gokittentts:gokittentts /models /var/lib/gokittentts/models
+
+USER gokittentts
+EXPOSE 8880
+VOLUME /var/lib/gokittentts/models
+ENTRYPOINT ["gokittentts"]
+CMD ["serve"]

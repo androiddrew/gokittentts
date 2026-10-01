@@ -26,6 +26,8 @@ make image-cpu                                   # bakes mini; BAKE_MODELS= for 
 docker run -p 8880:8880 -v kitten-models:/var/lib/gokittentts/models gokittentts:cpu
 ```
 
+`make image-cpu` builds `gokittentts:cpu-amd64` and `gokittentts:cpu-arm64` with `docker buildx`, and tags the host's one `gokittentts:cpu`. The other platform's packages install under QEMU, so it needs `binfmt` support. Use `IMAGE_PLATFORMS=linux/arm64` to build only one. Models the image didn't bake are downloaded on first use into `/var/lib/gokittentts/models`. Mount a volume there so they survive restarts. A new named volume starts with a copy of the baked models. A bind-mounted directory must be writable by uid 10001. The image's config is [`docker/config.yaml`](docker/config.yaml). Third-party licenses are in `/usr/share/doc/gokittentts/LICENSES`.
+
 Plain binary (Linux):
 
 ```bash

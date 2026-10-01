@@ -1,0 +1,18 @@
+# The CPU image's config, at /etc/gokittentts/config.yaml. Mount your own over
+# it to change anything; KITTEN_DEFAULT_MODEL, KITTEN_LISTEN and KITTEN_API_KEY
+# override it from the environment.
+listen: ":8880"
+onnxruntime_lib: /opt/onnxruntime/lib/libonnxruntime.so.1.29.1
+models_dir: /var/lib/gokittentts/models   # baked and downloaded models; mount a volume here
+download: true                           # fetch missing models from Hugging Face on first use
+default_model: kitten-tts-mini-0.8
+
+models:
+  kitten-tts-mini-0.8:      { device: cpu }
+  kitten-tts-micro-0.8:     { device: cpu }
+  kitten-tts-nano-0.8-int8: { device: cpu }
+  kitten-tts-nano-0.8-fp32: { device: cpu }
+
+ffmpeg: ffmpeg
+metrics: true
+log_format: json

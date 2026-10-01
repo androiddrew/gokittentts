@@ -5,7 +5,8 @@ KITTENTTS_RAW := https://raw.githubusercontent.com/KittenML/KittenTTS/$(KITTENTT
 GOLDEN_PY := uv run --no-project --with "phonemizer>=3.4.0"
 
 ORT_VERSION := 1.29.1
-ORT_ARCH := $(if $(filter aarch64 arm64,$(shell uname -m)),aarch64,x64)
+HOST_ARCH := $(if $(filter aarch64 arm64,$(shell uname -m)),arm64,amd64)
+ORT_ARCH := $(if $(filter arm64,$(HOST_ARCH)),aarch64,x64)
 ORT_DIR := third_party/onnxruntime-linux-$(ORT_ARCH)-$(ORT_VERSION)
 ORT_LIB := $(ORT_DIR)/lib/libonnxruntime.so.$(ORT_VERSION)
 # A newer runtime that onnxruntime_go can load, for the version-check test.
@@ -22,7 +23,7 @@ ORT_GPU_LIB := $(ORT_GPU_DIR)/lib/libonnxruntime.so.$(ORT_VERSION)
 MODELS_DIR := models
 MODELS := kitten-tts-mini-0.8 kitten-tts-micro-0.8 kitten-tts-nano-0.8-int8 kitten-tts-nano-0.8-fp32
 
-.PHONY: build test test-native test-cuda onnxruntime-gpu golden golden-test reference emoji-table
+.PHONY: build test test-native test-cuda onnxruntime-gpu image-cpu golden golden-test reference emoji-table
 
 build:
 	CGO_ENABLED=1 go build -tags espeak -o bin/gokittentts ./cmd/gokittentts
@@ -61,6 +62,23 @@ third_party/onnxruntime-linux-$(ORT_ARCH)-%/VERSION_NUMBER:
 # Pulls a model at its pinned revision, checking its SHA-256s.
 $(MODELS_DIR)/%/current/config.json:
 	go run ./cmd/gokittentts pull --dir $(MODELS_DIR) $*
+
+# Docker images. Each platform is built and loaded as <IMAGE>:cpu-<arch>,
+# since the classic image store can't hold a multi-platform image, and the
+# host's platform is also tagged <IMAGE>:cpu. Other platforms run under QEMU.
+# BAKE_MODELS is comma-separated; `BAKE_MODELS=` builds a slim image.
+IMAGE ?= gokittentts
+BAKE_MODELS ?= kitten-tts-mini-0.8
+IMAGE_PLATFORMS ?= linux/amd64 linux/arm64
+VCS_REF := $(shell git rev-parse HEAD)$(shell git diff --quiet HEAD || echo -dirty)
+
+image-cpu:
+	set -e; for p in $(IMAGE_PLATFORMS); do \
+		docker buildx build --platform $$p -f docker/Dockerfile.cpu \
+			--build-arg BAKE_MODELS=$(BAKE_MODELS) --build-arg VCS_REF=$(VCS_REF) \
+			--load -t $(IMAGE):cpu-$${p#linux/} . ; \
+	done
+	$(if $(filter linux/$(HOST_ARCH),$(IMAGE_PLATFORMS)),docker tag $(IMAGE):cpu-$(HOST_ARCH) $(IMAGE):cpu)
 
 # Regenerate testdata/golden.json and testdata/normalize_golden.json from the
 # Python reference.
