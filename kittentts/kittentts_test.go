@@ -55,11 +55,13 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	// Models are in the model store's layout: <name>/current/config.json.
 	configs := []kittentts.ModelConfig{{Name: badContract, Dir: filepath.Join("testdata", badContract)}}
 	for _, e := range entries {
-		if _, err := os.Stat(filepath.Join(dir, e.Name(), "config.json")); err == nil {
+		modelDir := filepath.Join(dir, e.Name(), "current")
+		if _, err := os.Stat(filepath.Join(modelDir, "config.json")); err == nil {
 			models = append(models, e.Name())
-			configs = append(configs, kittentts.ModelConfig{Name: e.Name(), Dir: filepath.Join(dir, e.Name()), Device: kittentts.CPU})
+			configs = append(configs, kittentts.ModelConfig{Name: e.Name(), Dir: modelDir, Device: kittentts.CPU})
 		}
 	}
 	if len(models) == 0 {
@@ -71,7 +73,7 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	first := filepath.Join(dir, models[0])
+	first := filepath.Join(dir, models[0], "current")
 	own := filepath.Join(tmp, ownVoices)
 	if err := makeOwnVoicesModel(own, first); err != nil {
 		fmt.Fprintln(os.Stderr, "making the own-voices model:", err)

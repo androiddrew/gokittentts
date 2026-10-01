@@ -286,6 +286,20 @@ func TestMetricsCountRequests(t *testing.T) {
 	}
 }
 
+func TestModelDownloadsComeFromTheEngine(t *testing.T) {
+	h, eng := newServer(t)
+	eng.downloads = map[string][2]uint64{mini: {2, 1}}
+	families := scrape(t, h)
+	for _, c := range []struct {
+		model, status string
+		want          float64
+	}{{mini, "success", 2}, {mini, "failure", 1}, {nano, "success", 0}, {nano, "failure", 0}} {
+		if v := sample(t, families, "kitten_model_downloads_total", map[string]string{"model": c.model, "status": c.status}); v != c.want {
+			t.Errorf("downloads{%s,%s} = %v, want %v", c.model, c.status, v, c.want)
+		}
+	}
+}
+
 func TestModelLoadedComesFromTheEngine(t *testing.T) {
 	h, eng := newServer(t)
 	// A model the engine loaded without a request, and one whose request

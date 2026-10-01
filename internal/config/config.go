@@ -11,18 +11,22 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/androiddrew/gokittentts/internal/modelstore"
 	"github.com/androiddrew/gokittentts/kittentts"
 )
 
 // DefaultAlias is the model_aliases target that means default_model.
 const DefaultAlias = "default"
 
-// Config is the whole config file. Fields that later features read (download
-// and so on) are ignored until those features land.
+// DefaultModelsDir is models_dir when it is not set.
+const DefaultModelsDir = "/var/lib/gokittentts/models"
+
+// Config is the whole config file.
 type Config struct {
 	Listen         string            `yaml:"listen"`
 	ONNXRuntimeLib string            `yaml:"onnxruntime_lib"`
 	ModelsDir      string            `yaml:"models_dir"`
+	Download       bool              `yaml:"download"` // fetch missing models from Hugging Face on first use
 	DefaultModel   string            `yaml:"default_model"`
 	Models         map[string]Model  `yaml:"models"`
 	ModelAliases   map[string]string `yaml:"model_aliases"` // OpenAI model name -> model name or "default"
@@ -41,6 +45,10 @@ type Model struct {
 	CUDADeviceID   int              `yaml:"cuda_device_id"`
 	IntraOpThreads int              `yaml:"intra_op_threads"`
 	MaxQueue       *int             `yaml:"max_queue"` // requests that may wait behind the running one; nil means DefaultMaxQueue
+	// Repo and Revision download a model that isn't in the pinned manifest,
+	// from a Hugging Face repo, without hash checks.
+	Repo     string `yaml:"repo"`
+	Revision string `yaml:"revision"`
 }
 
 // DefaultMaxQueue is a model's queue size when max_queue is not set.
@@ -87,7 +95,8 @@ func Load(path string) (*Config, error) {
 func Parse(data []byte, getenv func(string) string) (*Config, error) {
 	c := Config{
 		Listen:       ":8880",
-		ModelsDir:    "/var/lib/gokittentts/models",
+		ModelsDir:    DefaultModelsDir,
+		Download:     true,
 		DefaultModel: "kitten-tts-mini-0.8",
 		Speed:        SpeedRange{Min: 0.5, Max: 2.0},
 		Limits:       Limits{MaxInputChars: 4096, RequestTimeout: 120 * time.Second},
@@ -134,6 +143,16 @@ func (c *Config) validate() error {
 	for name, m := range c.Models {
 		if m.Device != "" && m.Device != kittentts.CPU && m.Device != "cuda" {
 			errs = append(errs, fmt.Errorf("model %s: unknown device %q (want cpu or cuda)", name, m.Device))
+		}
+		if (m.Repo == "") != (m.Revision == "") {
+			errs = append(errs, fmt.Errorf("model %s: repo and revision must be set together", name))
+		}
+		if _, pinned := modelstore.Manifest[name]; pinned && m.Repo != "" {
+			errs = append(errs, fmt.Errorf("model %s is pinned and hash-checked; remove its repo and revision, or give the custom model another name", name))
+		}
+		// The revision names a directory under models_dir.
+		if m.Revision != "" && (strings.ContainsAny(m.Revision, `/\`) || m.Revision == "." || m.Revision == "..") {
+			errs = append(errs, fmt.Errorf("model %s: revision %q must be a commit or tag, not a path", name, m.Revision))
 		}
 		if m.QueueSize() < 0 {
 			errs = append(errs, fmt.Errorf("model %s: max_queue must not be negative, got %d", name, m.QueueSize()))

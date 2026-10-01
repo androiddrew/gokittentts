@@ -20,7 +20,6 @@ type metrics struct {
 	synthesis  *prometheus.HistogramVec // model
 	rtf        *prometheus.HistogramVec // model
 	firstAudio *prometheus.HistogramVec // model
-	downloads  *prometheus.CounterVec   // model, status; counted once the model store lands
 	handler    http.Handler
 }
 
@@ -47,10 +46,6 @@ func newMetrics(cfg *config.Config, engine Engine, queues map[string]*queue, for
 		firstAudio: histogram("kitten_time_to_first_audio_seconds",
 			"Time from a successful request's arrival to its first audio, including queue wait.",
 			[]float64{.05, .1, .25, .5, .75, 1, 1.5, 2, 5, 10, 30}),
-		downloads: f.NewCounterVec(prometheus.CounterOpts{
-			Name: "kitten_model_downloads_total",
-			Help: "Model downloads by status.",
-		}, []string{"model", "status"}),
 	}
 	for name, model := range cfg.Models {
 		q := queues[name]
@@ -81,7 +76,17 @@ func newMetrics(cfg *config.Config, engine Engine, queues map[string]*queue, for
 			m.requests.WithLabelValues(name, format, strconv.Itoa(http.StatusOK))
 		}
 		for _, status := range []string{"success", "failure"} {
-			m.downloads.WithLabelValues(name, status)
+			f.NewCounterFunc(prometheus.CounterOpts{
+				Name:        "kitten_model_downloads_total",
+				Help:        "Model downloads by status.",
+				ConstLabels: prometheus.Labels{"model": name, "status": status},
+			}, func() float64 {
+				succeeded, failed := engine.Downloads(name)
+				if status == "success" {
+					return float64(succeeded)
+				}
+				return float64(failed)
+			})
 		}
 	}
 	reg.MustRegister(collectors.NewGoCollector(), collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))

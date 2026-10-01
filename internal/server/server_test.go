@@ -46,7 +46,8 @@ type fakeEngine struct {
 
 	stall *stall
 
-	loaded map[string]bool // models the engine reports loaded; Stream loads its model
+	loaded    map[string]bool      // models the engine reports loaded; Stream loads its model
+	downloads map[string][2]uint64 // succeeded and failed downloads, by model
 }
 
 // stall holds a stream before chunk at until release is closed or, unless
@@ -131,6 +132,13 @@ func (f *fakeEngine) Loaded(model string) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.loaded[model]
+}
+
+func (f *fakeEngine) Downloads(model string) (succeeded, failed uint64) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	d := f.downloads[model]
+	return d[0], d[1]
 }
 
 func (f *fakeEngine) producedCount() int {
@@ -834,6 +842,15 @@ func TestEngineFailure(t *testing.T) {
 	e := openAIError(t, speech(t, h, `{"model":"tts-1","input":"Hi.","voice":"Leo"}`), http.StatusInternalServerError)
 	if e["type"] != "server_error" {
 		t.Errorf("error %v, want type server_error", e)
+	}
+}
+
+func TestUnavailableModel(t *testing.T) {
+	h, eng := newServer(t)
+	eng.err = fmt.Errorf("%w: model kitten-tts-mini-0.8 is not in /models and downloads are off; run gokittentts pull kitten-tts-mini-0.8", server.ErrModelUnavailable)
+	e := openAIError(t, speech(t, h, pcmRequest), http.StatusServiceUnavailable)
+	if msg, _ := e["message"].(string); e["type"] != "server_error" || !strings.Contains(msg, "gokittentts pull kitten-tts-mini-0.8") {
+		t.Errorf("error %v, want a server_error passing on the store's advice", e)
 	}
 }
 

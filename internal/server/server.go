@@ -23,27 +23,54 @@ import (
 
 	"github.com/androiddrew/gokittentts/internal/audio"
 	"github.com/androiddrew/gokittentts/internal/config"
+	"github.com/androiddrew/gokittentts/internal/modelstore"
 	"github.com/androiddrew/gokittentts/kittentts"
 )
 
 // Engine streams a request's audio with the named model, one chunk at a
-// time, and reports which models it has loaded.
+// time, and reports which models it has loaded and downloaded.
 type Engine interface {
+	// Stream fails with ErrModelUnavailable if the model can't be got.
 	Stream(ctx context.Context, model string, r kittentts.Request) iter.Seq2[kittentts.Chunk, error]
 	Loaded(model string) bool
+	Downloads(model string) (succeeded, failed uint64)
 }
 
-// KittenEngine adapts *kittentts.Engine to Engine. Models load on their
-// first request.
-type KittenEngine struct{ *kittentts.Engine }
+// ErrModelUnavailable means a model isn't on disk and couldn't be
+// downloaded. Requests for it get a 503.
+var ErrModelUnavailable = errors.New("model unavailable")
 
-// Stream loads the model if needed and streams r.
+// KittenEngine adapts *kittentts.Engine to Engine. Models load on their
+// first request, after Store downloads any that are missing. The engine's
+// model directories must be Store.Path(name).
+type KittenEngine struct {
+	*kittentts.Engine
+	Store *modelstore.Store
+}
+
+// Stream gets and loads the model if needed and streams r.
 func (e KittenEngine) Stream(ctx context.Context, model string, r kittentts.Request) iter.Seq2[kittentts.Chunk, error] {
-	m, err := e.Model(model)
-	if err != nil {
+	fail := func(err error) iter.Seq2[kittentts.Chunk, error] {
 		return func(yield func(kittentts.Chunk, error) bool) { yield(kittentts.Chunk{}, err) }
 	}
+	if !e.Loaded(model) {
+		if _, err := e.Store.Ensure(ctx, model); err != nil {
+			if ctx.Err() != nil {
+				return fail(ctx.Err())
+			}
+			return fail(fmt.Errorf("%w: %w", ErrModelUnavailable, err))
+		}
+	}
+	m, err := e.Model(model)
+	if err != nil {
+		return fail(err)
+	}
 	return m.Stream(ctx, r)
+}
+
+// Downloads reports the store's downloads of the model.
+func (e KittenEngine) Downloads(model string) (succeeded, failed uint64) {
+	return e.Store.Downloads(model)
 }
 
 // OpenAI accepts speeds in this range; anything else is a 400.
@@ -312,6 +339,10 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 	chunk, err, more := next()
 	if ctx.Err() != nil {
 		s.writeContextError(w, r, rec, ctx.Err())
+		return
+	}
+	if errors.Is(err, ErrModelUnavailable) {
+		rec.fail(w, http.StatusServiceUnavailable, serverError, "", err.Error())
 		return
 	}
 	if err != nil {

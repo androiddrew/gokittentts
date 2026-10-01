@@ -18,6 +18,7 @@ default_model: kitten-tts-micro-0.8
 models:
   kitten-tts-mini-0.8:  { device: cpu, intra_op_threads: 4, max_queue: 3 }
   kitten-tts-micro-0.8: { device: cpu }
+  my-kitten: { repo: someone/my-kitten, revision: abc123 }
 model_aliases:
   tts-1: default
   tts-1-hd: kitten-tts-mini-0.8
@@ -31,6 +32,7 @@ limits:
 ffmpeg: /usr/local/bin/ffmpeg
 metrics: false
 log_format: text
+download: false
 `
 
 func TestParse(t *testing.T) {
@@ -60,8 +62,11 @@ func TestParse(t *testing.T) {
 	if c.FFmpeg != "/usr/local/bin/ffmpeg" {
 		t.Errorf("ffmpeg %q", c.FFmpeg)
 	}
-	if c.Metrics || c.LogFormat != "text" {
-		t.Errorf("metrics %v, log format %q", c.Metrics, c.LogFormat)
+	if c.Metrics || c.LogFormat != "text" || c.Download {
+		t.Errorf("metrics %v, log format %q, download %v", c.Metrics, c.LogFormat, c.Download)
+	}
+	if m := c.Models["my-kitten"]; m.Repo != "someone/my-kitten" || m.Revision != "abc123" {
+		t.Errorf("custom model %+v", m)
 	}
 }
 
@@ -103,8 +108,8 @@ func TestParseDefaults(t *testing.T) {
 	if c.Limits.RequestTimeout != 120*time.Second {
 		t.Errorf("request timeout %v, want 120s", c.Limits.RequestTimeout)
 	}
-	if !c.Metrics || c.LogFormat != "json" {
-		t.Errorf("metrics %v, log format %q; want true and json", c.Metrics, c.LogFormat)
+	if !c.Metrics || c.LogFormat != "json" || !c.Download {
+		t.Errorf("metrics %v, log format %q, download %v; want true, json and true", c.Metrics, c.LogFormat, c.Download)
 	}
 }
 
@@ -151,6 +156,10 @@ func TestValidation(t *testing.T) {
 		{"negative queue", "models:\n  kitten-tts-mini-0.8: { max_queue: -1 }\n", "max_queue"},
 		{"non-positive request timeout", "models:\n  kitten-tts-mini-0.8: {}\nlimits: { request_timeout: 0s }\n", "request_timeout"},
 		{"unknown log format", "models:\n  kitten-tts-mini-0.8: {}\nlog_format: xml\n", "log_format"},
+		{"repo without a revision", "models:\n  kitten-tts-mini-0.8: {}\n  mine: { repo: a/b }\n", "revision"},
+		{"revision without a repo", "models:\n  kitten-tts-mini-0.8: {}\n  mine: { revision: abc }\n", "repo"},
+		{"repo on a pinned model", "models:\n  kitten-tts-mini-0.8: { repo: a/b, revision: abc }\n", "pinned"},
+		{"revision that is a path", "models:\n  kitten-tts-mini-0.8: {}\n  mine: { repo: a/b, revision: ../x }\n", "revision"},
 		{"bad yaml", "models: [", "yaml"},
 	}
 	for _, c := range cases {
