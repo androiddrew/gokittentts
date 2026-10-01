@@ -54,7 +54,7 @@ make image-cuda12        # or image-cuda13; both bake and default to nano-fp32
 docker run --gpus all -p 8880:8880 gokittentts:cuda12
 ```
 
-For a plain binary, use the `gpu_cuda12` (or `gpu_cuda13`) ONNX Runtime archive, provide CUDA and cuDNN 9, and set `device: cuda` for the model in `config.yaml`. The GPU only speeds up nano-fp32 significantly. The int8 models keep their quantized ops on the CPU (see [docs/ORIGINAL_SPEC.md](docs/ORIGINAL_SPEC.md) section 11.4).
+For a plain binary, use the `gpu_cuda12` (or `gpu_cuda13`) ONNX Runtime archive (`make onnxruntime-gpu ORT_CUDA=12`), provide CUDA and cuDNN 9 on the loader path, and set `device: cuda` (and optionally `cuda_device_id`) for the model in `config.yaml`, or pass `say --device cuda`. If the CUDA provider can't be enabled, the model fails to load; it never falls back to the CPU. `make test-cuda` checks nano-fp32 on GPU 0. The GPU only speeds up nano-fp32 significantly. The int8 models keep their quantized ops on the CPU (see [docs/ORIGINAL_SPEC.md](docs/ORIGINAL_SPEC.md) section 11.4).
 
 ## Use it
 

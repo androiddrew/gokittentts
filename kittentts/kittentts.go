@@ -25,8 +25,14 @@ const ORTVersion = "1.29.1"
 // Device is where a model runs.
 type Device string
 
-// CPU is the only device until CUDA support lands.
-const CPU Device = "cpu"
+// The devices a model can run on. CUDA needs a CUDA build of ONNX Runtime
+// (onnxruntime-linux-x64-gpu_cuda12 or _cuda13) and its CUDA and cuDNN
+// libraries; if the CUDA provider can't be enabled, the model fails to load
+// rather than running on the CPU.
+const (
+	CPU  Device = "cpu"
+	CUDA Device = "cuda"
+)
 
 // ModelConfig names a model and the directory holding its config.json,
 // .onnx file and voices.npz.
@@ -34,8 +40,8 @@ type ModelConfig struct {
 	Name           string // e.g. "kitten-tts-mini-0.8"
 	Dir            string
 	Device         Device // "" means CPU
-	CUDADeviceID   int
-	IntraOpThreads int // 0 = ONNX Runtime default
+	CUDADeviceID   int    // the GPU when Device is CUDA
+	IntraOpThreads int    // 0 = ONNX Runtime default
 }
 
 // Request is one text to synthesize.
@@ -82,7 +88,7 @@ func NewEngine(ortLibPath string, models []ModelConfig) (*Engine, error) {
 		if _, dup := slots[c.Name]; dup {
 			return nil, fmt.Errorf("kittentts: model %q configured twice", c.Name)
 		}
-		if c.Device != "" && c.Device != CPU {
+		if c.Device != "" && c.Device != CPU && c.Device != CUDA {
 			return nil, fmt.Errorf("kittentts: model %q: device %q is not supported", c.Name, c.Device)
 		}
 		slots[c.Name] = &slot{cfg: c}

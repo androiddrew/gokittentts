@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/androiddrew/gokittentts/internal/config"
+	"github.com/androiddrew/gokittentts/kittentts"
 )
 
 func noEnv(string) string { return "" }
@@ -18,6 +19,7 @@ default_model: kitten-tts-micro-0.8
 models:
   kitten-tts-mini-0.8:  { device: cpu, intra_op_threads: 4, max_queue: 3 }
   kitten-tts-micro-0.8: { device: cpu }
+  kitten-tts-nano-0.8-fp32: { device: cuda, cuda_device_id: 1 }
   my-kitten: { repo: someone/my-kitten, revision: abc123 }
 model_aliases:
   tts-1: default
@@ -46,6 +48,9 @@ func TestParse(t *testing.T) {
 	}
 	if m := c.Models["kitten-tts-mini-0.8"]; m.Device != "cpu" || m.IntraOpThreads != 4 || m.QueueSize() != 3 {
 		t.Errorf("mini: %+v, queue %d", m, m.QueueSize())
+	}
+	if m := c.Models["kitten-tts-nano-0.8-fp32"]; m.Device != kittentts.CUDA || m.CUDADeviceID != 1 {
+		t.Errorf("nano-fp32: %+v", m)
 	}
 	if c.Limits.RequestTimeout != 45*time.Second {
 		t.Errorf("request timeout %v", c.Limits.RequestTimeout)
@@ -147,6 +152,8 @@ func TestValidation(t *testing.T) {
 		name, yaml, want string
 	}{
 		{"unknown device", "models:\n  kitten-tts-mini-0.8: { device: rocm }\n", "device"},
+		{"negative CUDA device id", "models:\n  kitten-tts-mini-0.8: { device: cuda, cuda_device_id: -1 }\n", "cuda_device_id"},
+		{"negative intra-op threads", "models:\n  kitten-tts-mini-0.8: { intra_op_threads: -2 }\n", "intra_op_threads"},
 		{"unconfigured default model", "default_model: kitten-tts-nano-0.8-fp32\nmodels:\n  kitten-tts-mini-0.8: {}\n", "kitten-tts-nano-0.8-fp32"},
 		{"no models", "listen: \":1\"\n", "models"},
 		{"voice map names a non-Kitten voice", "models:\n  kitten-tts-mini-0.8: {}\nvoices:\n  alloy: Nobody\n", "Nobody"},

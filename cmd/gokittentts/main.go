@@ -2,7 +2,7 @@
 //
 //	gokittentts serve [--config /etc/gokittentts/config.yaml]
 //	gokittentts pull [--config config.yaml] [--dir models-dir] [model[,model]...]
-//	gokittentts say --onnxruntime-lib <libonnxruntime.so.1.29.1> [--voice Bruno] [--out out.wav] "Hello from Go."
+//	gokittentts say --onnxruntime-lib <libonnxruntime.so.1.29.1> [--device cuda] [--voice Bruno] [--out out.wav] "Hello from Go."
 package main
 
 import (
@@ -210,6 +210,8 @@ func say(args []string) error {
 	ortLib := fs.String("onnxruntime-lib", "", "path to the versioned ONNX Runtime library, libonnxruntime.so.1.29.1 (required)")
 	modelsDir := fs.String("models-dir", "models", "models directory; a missing pinned model is downloaded into it")
 	model := fs.String("model", "kitten-tts-mini-0.8", "model name")
+	device := fs.String("device", "cpu", "cpu, or cuda with a CUDA build of ONNX Runtime")
+	cudaDeviceID := fs.Int("cuda-device-id", 0, "the GPU to use with --device cuda")
 	voice := fs.String("voice", "Bruno", "Kitten voice name (Bella, Bruno, …) or expr-voice-* key")
 	speed := fs.Float64("speed", 1, "speaking speed, 0.5 to 2.0")
 	out := fs.String("out", "out.wav", "WAV file to write")
@@ -226,6 +228,10 @@ func say(args []string) error {
 		return errors.New("say: no text given")
 	case *speed < 0.5 || *speed > 2:
 		return fmt.Errorf("say: --speed %v is outside 0.5 to 2.0", *speed)
+	case kittentts.Device(*device) != kittentts.CPU && kittentts.Device(*device) != kittentts.CUDA:
+		return fmt.Errorf("say: --device %q is not cpu or cuda", *device)
+	case *cudaDeviceID < 0:
+		return fmt.Errorf("say: --cuda-device-id %d is negative", *cudaDeviceID)
 	}
 
 	dir, err := modelstore.New(*modelsDir, modelstore.Manifest, true).Ensure(context.Background(), *model)
@@ -233,7 +239,7 @@ func say(args []string) error {
 		return err
 	}
 	engine, err := kittentts.NewEngine(*ortLib, []kittentts.ModelConfig{
-		{Name: *model, Dir: dir, Device: kittentts.CPU},
+		{Name: *model, Dir: dir, Device: kittentts.Device(*device), CUDADeviceID: *cudaDeviceID},
 	})
 	if err != nil {
 		return err

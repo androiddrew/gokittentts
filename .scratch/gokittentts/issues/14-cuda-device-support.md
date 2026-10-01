@@ -4,8 +4,8 @@
 
 **Blocked by:** 08 (Multi-model config and lazy loading)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] With a CUDA ONNX Runtime build and a GPU, nano-fp32 with `device: cuda` serves audio and runs on the GPU
-- [ ] Native library test: a CUDA append failure surfaces as a load error
-- [ ] An unknown device value fails config validation at startup
+- [x] With a CUDA ONNX Runtime build and a GPU, nano-fp32 with `device: cuda` serves audio and runs on the GPU
+- [x] Native library test: a CUDA append failure surfaces as a load error
+- [x] An unknown device value fails config validation at startup

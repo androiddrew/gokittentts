@@ -141,8 +141,14 @@ func (c *Config) validate() error {
 		errs = append(errs, errors.New("no models configured"))
 	}
 	for name, m := range c.Models {
-		if m.Device != "" && m.Device != kittentts.CPU && m.Device != "cuda" {
+		if m.Device != "" && m.Device != kittentts.CPU && m.Device != kittentts.CUDA {
 			errs = append(errs, fmt.Errorf("model %s: unknown device %q (want cpu or cuda)", name, m.Device))
+		}
+		if m.CUDADeviceID < 0 {
+			errs = append(errs, fmt.Errorf("model %s: cuda_device_id must not be negative, got %d", name, m.CUDADeviceID))
+		}
+		if m.IntraOpThreads < 0 {
+			errs = append(errs, fmt.Errorf("model %s: intra_op_threads must not be negative, got %d", name, m.IntraOpThreads))
 		}
 		if (m.Repo == "") != (m.Revision == "") {
 			errs = append(errs, fmt.Errorf("model %s: repo and revision must be set together", name))

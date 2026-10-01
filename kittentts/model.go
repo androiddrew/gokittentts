@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -76,6 +77,11 @@ func loadModel(cfg ModelConfig, p phonemize.Phonemizer) (*Model, error) {
 			return nil, err
 		}
 	}
+	if cfg.Device == CUDA {
+		if err := appendCUDA(opts, cfg.CUDADeviceID); err != nil {
+			return nil, fmt.Errorf("enabling CUDA on device %d: %w", cfg.CUDADeviceID, err)
+		}
+	}
 	session, err := ort.NewDynamicAdvancedSession(onnxPath,
 		[]string{"input_ids", "style", "speed"}, []string{"waveform", "duration"}, opts)
 	if err != nil {
@@ -88,6 +94,21 @@ func loadModel(cfg ModelConfig, p phonemize.Phonemizer) (*Model, error) {
 		aliases:     mf.VoiceAliases,
 		speedPriors: mf.SpeedPriors,
 	}, nil
+}
+
+// appendCUDA adds the CUDA execution provider for GPU deviceID. Nodes it
+// has no kernel for still run on the CPU, as ONNX Runtime always does, but
+// failing to enable the provider at all is an error.
+func appendCUDA(opts *ort.SessionOptions, deviceID int) error {
+	cuda, err := ort.NewCUDAProviderOptions()
+	if err != nil {
+		return err
+	}
+	defer cuda.Destroy()
+	if err := cuda.Update(map[string]string{"device_id": strconv.Itoa(deviceID)}); err != nil {
+		return err
+	}
+	return opts.AppendExecutionProviderCUDA(cuda)
 }
 
 // contract is every model's inputs and outputs. -1 is a dynamic dimension.

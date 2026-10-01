@@ -28,13 +28,15 @@ var (
 
 // Extra models the tests configure: one with a broken contract, one built
 // from a real model with its own config.json and voices file, one that
-// nothing loads before TestModelsLoadOnFirstUseAndOnce, and one whose
-// directory doesn't exist.
+// nothing loads before TestModelsLoadOnFirstUseAndOnce, one whose
+// directory doesn't exist, and one on CUDA, which the CPU-only ONNX Runtime
+// can't enable.
 const (
 	badContract = "bad-contract"
 	ownVoices   = "own-voices"
 	lazy        = "lazy"
 	missing     = "missing"
+	onCUDA      = "on-cuda"
 )
 
 func TestMain(m *testing.M) {
@@ -42,6 +44,15 @@ func TestMain(m *testing.M) {
 	if lib := os.Getenv("KITTEN_TEST_NEW_ENGINE"); lib != "" {
 		_, err := kittentts.NewEngine(lib, nil)
 		fmt.Print(err)
+		os.Exit(0)
+	}
+	// Child mode for TestCUDA.
+	if lib := os.Getenv("KITTEN_TEST_CUDA"); lib != "" {
+		if err := synthesizeOnCUDA(lib, os.Getenv("KITTEN_MODELS_DIR")); err != nil {
+			fmt.Print(err)
+		} else {
+			fmt.Print("ok")
+		}
 		os.Exit(0)
 	}
 
@@ -83,6 +94,7 @@ func TestMain(m *testing.M) {
 		kittentts.ModelConfig{Name: ownVoices, Dir: own},
 		kittentts.ModelConfig{Name: lazy, Dir: first},
 		kittentts.ModelConfig{Name: missing, Dir: filepath.Join(tmp, missing)},
+		kittentts.ModelConfig{Name: onCUDA, Dir: first, Device: kittentts.CUDA},
 	)
 	engine, err = kittentts.NewEngine(lib, configs)
 	if err != nil {
@@ -165,6 +177,66 @@ func TestNewEngineRejectsOtherORTVersions(t *testing.T) {
 	if !strings.Contains(string(out), "1.29.1") || !strings.Contains(string(out), "1.30.0") {
 		t.Fatalf("NewEngine with ONNX Runtime 1.30.0: got %q, want an error naming 1.29.1 and 1.30.0", out)
 	}
+}
+
+func TestCUDAFailureIsALoadError(t *testing.T) {
+	_, err := engine.Model(onCUDA)
+	if err == nil || !strings.Contains(err.Error(), "CUDA") {
+		t.Fatalf("loading a CUDA model with the CPU-only ONNX Runtime: err = %v, want an error naming CUDA", err)
+	}
+	if engine.Loaded(onCUDA) {
+		t.Error("a model whose CUDA provider failed reports loaded; it must not fall back to the CPU")
+	}
+}
+
+// TestCUDA runs nano-fp32 on GPU 0 with a CUDA build of ONNX Runtime, in a
+// child process, since a process can load only one ONNX Runtime.
+func TestCUDA(t *testing.T) {
+	lib := os.Getenv("KITTEN_ORT_LIB_CUDA")
+	if lib == "" {
+		t.Skip("KITTEN_ORT_LIB_CUDA not set")
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=^$")
+	cmd.Env = append(os.Environ(), "KITTEN_TEST_CUDA="+lib)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("child: %v\n%s", err, out)
+	}
+	if !strings.HasSuffix(string(out), "ok") {
+		t.Fatalf("nano-fp32 on CUDA: %s", out)
+	}
+}
+
+// synthesizeOnCUDA loads nano-fp32 on GPU 0, synthesizes a sentence and
+// checks with nvidia-smi that this process holds a CUDA context.
+func synthesizeOnCUDA(lib, dir string) error {
+	const name = "kitten-tts-nano-0.8-fp32"
+	e, err := kittentts.NewEngine(lib, []kittentts.ModelConfig{
+		{Name: name, Dir: filepath.Join(dir, name, "current"), Device: kittentts.CUDA},
+	})
+	if err != nil {
+		return err
+	}
+	defer e.Close()
+	m, err := e.Model(name)
+	if err != nil {
+		return err
+	}
+	pcm, err := m.Synthesize(context.Background(), kittentts.Request{Text: "Hello from the GPU.", Voice: "Bruno", Speed: 1})
+	if err != nil {
+		return err
+	}
+	if r := rms(pcm); r < 0.01 {
+		return fmt.Errorf("%d samples with RMS %.4f; want speech", len(pcm), r)
+	}
+	out, err := exec.Command("nvidia-smi", "--query-compute-apps=pid", "--format=csv,noheader").Output()
+	if err != nil {
+		return fmt.Errorf("nvidia-smi: %w", err)
+	}
+	if !slices.Contains(strings.Fields(string(out)), fmt.Sprint(os.Getpid())) {
+		return fmt.Errorf("pid %d is not among nvidia-smi's compute apps (%q)", os.Getpid(), out)
+	}
+	return nil
 }
 
 func TestModelContractIsCheckedOnLoad(t *testing.T) {

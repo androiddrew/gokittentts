@@ -11,13 +11,18 @@ ORT_LIB := $(ORT_DIR)/lib/libonnxruntime.so.$(ORT_VERSION)
 # A newer runtime that onnxruntime_go can load, for the version-check test.
 ORT_OTHER_VERSION := 1.30.0
 ORT_OTHER_DIR := third_party/onnxruntime-linux-$(ORT_ARCH)-$(ORT_OTHER_VERSION)
+# The CUDA build (x64 only) for device: cuda, against CUDA 12 or 13. It also
+# needs the CUDA and cuDNN 9 libraries on the loader path.
+ORT_CUDA ?= 12
+ORT_GPU_DIR := third_party/onnxruntime-linux-x64-gpu_cuda$(ORT_CUDA)-$(ORT_VERSION)
+ORT_GPU_LIB := $(ORT_GPU_DIR)/lib/libonnxruntime.so.$(ORT_VERSION)
 
 # Models for the native tests, fetched by `gokittentts pull` into the model
 # store layout, <name>/<revision>/ with a current symlink.
 MODELS_DIR := models
 MODELS := kitten-tts-mini-0.8 kitten-tts-micro-0.8 kitten-tts-nano-0.8-int8 kitten-tts-nano-0.8-fp32
 
-.PHONY: build test test-native golden golden-test reference emoji-table
+.PHONY: build test test-native test-cuda onnxruntime-gpu golden golden-test reference emoji-table
 
 build:
 	CGO_ENABLED=1 go build -tags espeak -o bin/gokittentts ./cmd/gokittentts
@@ -33,6 +38,20 @@ test-native: $(ORT_DIR)/VERSION_NUMBER $(ORT_OTHER_DIR)/VERSION_NUMBER $(MODELS:
 	KITTEN_ORT_LIB_OTHER=$(CURDIR)/$(ORT_OTHER_DIR)/lib/libonnxruntime.so.$(ORT_OTHER_VERSION) \
 	KITTEN_MODELS_DIR=$(CURDIR)/$(MODELS_DIR) \
 		go test -count=1 -tags native ./...
+
+# Runs nano-fp32 on GPU 0 with the CUDA build of ONNX Runtime.
+test-cuda: $(ORT_GPU_DIR)/VERSION_NUMBER $(MODELS_DIR)/kitten-tts-nano-0.8-fp32/current/config.json
+	KITTEN_ORT_LIB=$(CURDIR)/$(ORT_LIB) \
+	KITTEN_ORT_LIB_CUDA=$(CURDIR)/$(ORT_GPU_LIB) \
+	KITTEN_MODELS_DIR=$(CURDIR)/$(MODELS_DIR) \
+		go test -count=1 -tags native -run '^TestCUDA$$' -v ./kittentts
+
+onnxruntime-gpu: $(ORT_GPU_DIR)/VERSION_NUMBER
+
+$(ORT_GPU_DIR)/VERSION_NUMBER:
+	mkdir -p third_party
+	curl -sfL https://github.com/microsoft/onnxruntime/releases/download/v$(ORT_VERSION)/onnxruntime-linux-x64-gpu_cuda$(ORT_CUDA)-$(ORT_VERSION).tgz \
+		| tar xz -C third_party
 
 third_party/onnxruntime-linux-$(ORT_ARCH)-%/VERSION_NUMBER:
 	mkdir -p third_party
