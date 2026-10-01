@@ -213,6 +213,7 @@ func say(args []string) error {
 	voice := fs.String("voice", "Leo", "Kitten voice name (Bella, Bruno, …) or expr-voice-* key")
 	speed := fs.Float64("speed", 1, "speaking speed, 0.5 to 2.0")
 	out := fs.String("out", "out.wav", "WAV file to write")
+	md := fs.Bool("markdown", true, "read markdown as prose; --markdown=false reads the text as written")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -242,9 +243,10 @@ func say(args []string) error {
 		return err
 	}
 	pcm, err := m.Synthesize(context.Background(), kittentts.Request{
-		Text:  text,
-		Voice: *voice,
-		Speed: float32(*speed),
+		Text:     text,
+		Voice:    *voice,
+		Speed:    float32(*speed),
+		Markdown: *md,
 	})
 	if err != nil {
 		return err

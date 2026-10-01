@@ -43,10 +43,13 @@ type Request struct {
 	Text  string
 	Voice string  // Kitten name (e.g. "Bruno") or voices.npz key (e.g. "expr-voice-3-m")
 	Speed float32 // already clamped by the caller; 0 means 1.0
-	// Normalize and Markdown turn on the normalizer and the markdown pass.
-	// Neither is implemented yet, so both are ignored.
+	// Markdown reads markdown as prose: headings, list items and table rows
+	// become sentences, code blocks are skipped, link URLs and markup are
+	// dropped, and emoji are removed. Off, the text is read as written.
+	Markdown bool
+	// Normalize turns on the normalizer. It is not implemented yet, so it is
+	// ignored.
 	Normalize bool
-	Markdown  bool
 }
 
 // Engine is a registry of models sharing one ONNX Runtime environment and one

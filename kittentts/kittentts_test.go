@@ -427,6 +427,34 @@ func TestModelsLoadOnFirstUseAndOnce(t *testing.T) {
 	}
 }
 
+func TestMarkdownIsReadAsProse(t *testing.T) {
+	const reply = "# Release notes\n\n**Big** news: read [the docs](https://example.com/docs) 🎉\n\n" +
+		"- Faster *startup*\n- Run `gokittentts pull`\n\n```sh\nrm -rf /tmp/cache\n```\n"
+	// What the reply should be spoken as.
+	const prose = "Release notes.\n\nBig news: read the docs \n\nFaster startup.\n\nRun gokittentts pull."
+	m := mustModel(t, models[0])
+	// Token ids come from espeak-ng and the tokenizer, which are
+	// deterministic, so equal counts per chunk mean the same text reached
+	// the model.
+	tokens := func(text string, markdown bool) []int {
+		var counts []int
+		for c, err := range m.Stream(context.Background(), kittentts.Request{Text: text, Voice: "Leo", Speed: 1, Markdown: markdown}) {
+			if err != nil {
+				t.Fatal(err)
+			}
+			counts = append(counts, c.Tokens)
+		}
+		return counts
+	}
+	spoken := tokens(reply, true)
+	if want := tokens(prose, false); !slices.Equal(spoken, want) {
+		t.Errorf("the reply ran as %v tokens per chunk; the prose it should read as runs as %v", spoken, want)
+	}
+	if literal := tokens(reply, false); slices.Equal(literal, spoken) {
+		t.Errorf("with Markdown off the reply ran as %v tokens per chunk, the same as with it on", literal)
+	}
+}
+
 func mustModel(t *testing.T, name string) *kittentts.Model {
 	t.Helper()
 	m, err := engine.Model(name)

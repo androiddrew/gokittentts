@@ -14,6 +14,7 @@ import (
 	ort "github.com/yalue/onnxruntime_go"
 
 	"github.com/androiddrew/gokittentts/internal/chunk"
+	"github.com/androiddrew/gokittentts/internal/markdown"
 	"github.com/androiddrew/gokittentts/internal/npz"
 	"github.com/androiddrew/gokittentts/internal/phonemize"
 	"github.com/androiddrew/gokittentts/internal/tokenize"
@@ -202,7 +203,11 @@ func (m *Model) Stream(ctx context.Context, r Request) iter.Seq2[Chunk, error] {
 		if prior, ok := m.speedPriors[key]; ok {
 			speed *= prior
 		}
-		for _, text := range chunk.Split(r.Text) {
+		prose := r.Text
+		if r.Markdown {
+			prose = markdown.ToSpeech(prose)
+		}
+		for _, text := range chunk.Split(prose) {
 			if err := ctx.Err(); err != nil {
 				yield(Chunk{}, err)
 				return
