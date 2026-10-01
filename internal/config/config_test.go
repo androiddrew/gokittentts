@@ -3,6 +3,7 @@ package config_test
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/androiddrew/gokittentts/internal/config"
 )
@@ -15,7 +16,7 @@ onnxruntime_lib: /opt/onnxruntime/lib/libonnxruntime.so.1.29.1
 models_dir: /var/lib/gokittentts/models
 default_model: kitten-tts-micro-0.8
 models:
-  kitten-tts-mini-0.8:  { device: cpu, intra_op_threads: 4 }
+  kitten-tts-mini-0.8:  { device: cpu, intra_op_threads: 4, max_queue: 3 }
   kitten-tts-micro-0.8: { device: cpu }
 model_aliases:
   tts-1: default
@@ -26,6 +27,7 @@ voices:
 speed: { min: 0.75, max: 1.5 }
 limits:
   max_input_chars: 100
+  request_timeout: 45s
 ffmpeg: /usr/local/bin/ffmpeg
 `
 
@@ -38,8 +40,14 @@ func TestParse(t *testing.T) {
 		c.ModelsDir != "/var/lib/gokittentts/models" || c.DefaultModel != "kitten-tts-micro-0.8" {
 		t.Errorf("top-level fields: %+v", c)
 	}
-	if m := c.Models["kitten-tts-mini-0.8"]; m.Device != "cpu" || m.IntraOpThreads != 4 {
-		t.Errorf("mini: %+v", m)
+	if m := c.Models["kitten-tts-mini-0.8"]; m.Device != "cpu" || m.IntraOpThreads != 4 || m.QueueSize() != 3 {
+		t.Errorf("mini: %+v, queue %d", m, m.QueueSize())
+	}
+	if c.Limits.RequestTimeout != 45*time.Second {
+		t.Errorf("request timeout %v", c.Limits.RequestTimeout)
+	}
+	if c.APIKey != "" {
+		t.Errorf("api key %q without KITTEN_API_KEY", c.APIKey)
 	}
 	if c.ModelAliases["tts-1-hd"] != "kitten-tts-mini-0.8" || c.Voices["onyx"] != "Hugo" {
 		t.Errorf("aliases %v, voices %v", c.ModelAliases, c.Voices)
@@ -84,16 +92,35 @@ func TestParseDefaults(t *testing.T) {
 	if c.FFmpeg != "ffmpeg" {
 		t.Errorf("ffmpeg %q, want ffmpeg", c.FFmpeg)
 	}
+	if q := c.Models["kitten-tts-mini-0.8"].QueueSize(); q != 8 {
+		t.Errorf("queue size %d, want 8", q)
+	}
+	if c.Limits.RequestTimeout != 120*time.Second {
+		t.Errorf("request timeout %v, want 120s", c.Limits.RequestTimeout)
+	}
+}
+
+func TestQueueSizeCanBeZero(t *testing.T) {
+	c, err := config.Parse([]byte("models:\n  kitten-tts-mini-0.8: { max_queue: 0 }\n"), noEnv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if q := c.Models["kitten-tts-mini-0.8"].QueueSize(); q != 0 {
+		t.Errorf("queue size %d, want 0", q)
+	}
 }
 
 func TestEnvironmentOverrides(t *testing.T) {
-	env := map[string]string{"KITTEN_DEFAULT_MODEL": "kitten-tts-mini-0.8", "KITTEN_LISTEN": "127.0.0.1:1234"}
+	env := map[string]string{"KITTEN_DEFAULT_MODEL": "kitten-tts-mini-0.8", "KITTEN_LISTEN": "127.0.0.1:1234", "KITTEN_API_KEY": "s3cret"}
 	c, err := config.Parse([]byte(full), func(k string) string { return env[k] })
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.DefaultModel != "kitten-tts-mini-0.8" || c.Listen != "127.0.0.1:1234" {
-		t.Errorf("default model %q, listen %q", c.DefaultModel, c.Listen)
+	if c.DefaultModel != "kitten-tts-mini-0.8" || c.Listen != "127.0.0.1:1234" || c.APIKey != "s3cret" {
+		t.Errorf("default model %q, listen %q, api key %q", c.DefaultModel, c.Listen, c.APIKey)
+	}
+	if _, err := config.Parse([]byte(full), func(k string) string { return map[string]string{"KITTEN_API_KEY": " \t"}[k] }); err == nil || !strings.Contains(err.Error(), "KITTEN_API_KEY") {
+		t.Errorf("a whitespace-only KITTEN_API_KEY: err = %v, want an error naming it", err)
 	}
 	// The override is validated like the file.
 	env["KITTEN_DEFAULT_MODEL"] = "nope"
@@ -113,6 +140,8 @@ func TestValidation(t *testing.T) {
 		{"inverted speed range", "models:\n  kitten-tts-mini-0.8: {}\nspeed: { min: 2, max: 1 }\n", "speed"},
 		{"alias to an unconfigured model", "models:\n  kitten-tts-mini-0.8: {}\nmodel_aliases:\n  tts-1: kitten-tts-micro-0.8\n", "kitten-tts-micro-0.8"},
 		{"non-positive input limit", "models:\n  kitten-tts-mini-0.8: {}\nlimits: { max_input_chars: -1 }\n", "max_input_chars"},
+		{"negative queue", "models:\n  kitten-tts-mini-0.8: { max_queue: -1 }\n", "max_queue"},
+		{"non-positive request timeout", "models:\n  kitten-tts-mini-0.8: {}\nlimits: { request_timeout: 0s }\n", "request_timeout"},
 		{"bad yaml", "models: [", "yaml"},
 	}
 	for _, c := range cases {

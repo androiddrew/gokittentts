@@ -3,6 +3,8 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -10,6 +12,7 @@ import (
 	"io"
 	"iter"
 	"log/slog"
+	"net"
 	"net/http"
 	"os/exec"
 	"slices"
@@ -66,13 +69,21 @@ const defaultFormat = "mp3"
 type server struct {
 	cfg    *config.Config
 	engine Engine
-	ffmpeg string // resolved path, or empty when ffmpeg is disabled or missing
+	ffmpeg string            // resolved path, or empty when ffmpeg is disabled or missing
+	queues map[string]*queue // by model name
 }
 
 // New returns the HTTP handler for cfg, synthesizing with engine. If cfg's
-// ffmpeg can't be found, opus, aac and flac are rejected.
+// ffmpeg can't be found, opus, aac and flac are rejected. With an API key
+// set, /v1/* requires it; /healthz is always open.
 func New(cfg *config.Config, engine Engine) http.Handler {
-	s := &server{cfg: cfg, engine: engine}
+	s := &server{cfg: cfg, engine: engine, queues: make(map[string]*queue, len(cfg.Models))}
+	for name, m := range cfg.Models {
+		s.queues[name] = newQueue(m.QueueSize())
+	}
+	if cfg.APIKey == "" && !isLoopback(cfg.Listen) {
+		slog.Warn("auth is off and the server listens beyond loopback; set KITTEN_API_KEY to require a key", "listen", cfg.Listen)
+	}
 	if cfg.FFmpeg != "" {
 		// LookPath can return a path alongside exec.ErrDot; that path is not used.
 		if path, err := exec.LookPath(cfg.FFmpeg); err != nil {
@@ -81,10 +92,79 @@ func New(cfg *config.Config, engine Engine) http.Handler {
 			s.ffmpeg = path
 		}
 	}
+	api := http.NewServeMux()
+	api.HandleFunc("POST /v1/audio/speech", s.speech)
+	api.HandleFunc("GET /v1/voices", s.voices)
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /v1/audio/speech", s.speech)
-	mux.HandleFunc("GET /v1/voices", s.voices)
+	mux.Handle("/v1/", s.requireKey(api))
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	})
 	return mux
+}
+
+// requireKey wraps next to require "Authorization: Bearer <key>" when an
+// API key is configured. Keys are compared as SHA-256 digests in constant
+// time, so neither their contents nor their length leaks.
+func (s *server) requireKey(next http.Handler) http.Handler {
+	if s.cfg.APIKey == "" {
+		return next
+	}
+	want := sha256.Sum256([]byte(s.cfg.APIKey))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		scheme, key, _ := strings.Cut(r.Header.Get("Authorization"), " ")
+		got := sha256.Sum256([]byte(key))
+		if !strings.EqualFold(scheme, "Bearer") || subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
+			w.Header().Set("WWW-Authenticate", "Bearer")
+			writeError(w, http.StatusUnauthorized, invalidRequest, "", "missing or invalid API key; send Authorization: Bearer <key>")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// isLoopback reports whether a listen address only accepts local
+// connections. An empty host listens on every interface.
+func isLoopback(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		host = addr
+	}
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+// queue lets one request at a time run on a model, with up to a fixed
+// number waiting behind it.
+type queue struct {
+	admitted chan struct{} // a token per running or waiting request
+	running  chan struct{} // a token for the running request
+}
+
+func newQueue(size int) *queue {
+	return &queue{admitted: make(chan struct{}, 1+size), running: make(chan struct{}, 1)}
+}
+
+var errQueueFull = errors.New("queue full")
+
+// enter admits a request, or returns errQueueFull, then waits for its turn
+// until ctx ends. On success the caller must call release when done.
+func (q *queue) enter(ctx context.Context) (release func(), err error) {
+	select {
+	case q.admitted <- struct{}{}:
+	default:
+		return nil, errQueueFull
+	}
+	select {
+	case q.running <- struct{}{}:
+		return func() { <-q.running; <-q.admitted }, nil
+	case <-ctx.Done():
+		<-q.admitted
+		return nil, ctx.Err()
+	}
 }
 
 // speechRequest is OpenAI's CreateSpeechRequest plus normalize and markdown.
@@ -167,9 +247,25 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The timeout covers the queue wait and synthesis.
+	ctx, cancel := context.WithTimeout(r.Context(), s.cfg.Limits.RequestTimeout)
+	defer cancel()
+	release, err := s.queues[model].enter(ctx)
+	if errors.Is(err, errQueueFull) {
+		w.Header().Set("Retry-After", "1")
+		writeError(w, http.StatusTooManyRequests, rateLimit, "",
+			fmt.Sprintf("model %s is busy and its queue is full; retry shortly", model))
+		return
+	}
+	if err != nil {
+		s.writeContextError(w, r, model, err)
+		return
+	}
+	defer release()
+
 	// Pull the first chunk before sending headers, so a failure that comes
 	// before any audio is still an error response.
-	next, stop := iter.Pull2(s.engine.Stream(r.Context(), model, kittentts.Request{
+	next, stop := iter.Pull2(s.engine.Stream(ctx, model, kittentts.Request{
 		Text:      *req.Input,
 		Voice:     voice,
 		Speed:     max(s.cfg.Speed.Min, min(s.cfg.Speed.Max, float32(speed))),
@@ -178,6 +274,10 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 	}))
 	defer stop()
 	chunk, err, more := next()
+	if ctx.Err() != nil {
+		s.writeContextError(w, r, model, ctx.Err())
+		return
+	}
 	if err != nil {
 		slog.Error("synthesis failed", "model", model, "err", err)
 		writeError(w, http.StatusInternalServerError, serverError, "", "synthesis failed: "+err.Error())
@@ -199,7 +299,7 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 	// another goroutine as soon as it starts.
 	w.WriteHeader(http.StatusOK)
 	sink.rc.Flush()
-	enc, err := s.encoder(r.Context(), out, format)
+	enc, err := s.encoder(ctx, out, format)
 	if err != nil {
 		slog.Error("starting encoder", "format", format, "err", err)
 		panic(http.ErrAbortHandler)
@@ -213,8 +313,8 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 			err = enc.Write(chunk.PCM)
 		}
 		if err == nil {
-			// A disconnected client cancels the context; don't start another run.
-			err = r.Context().Err()
+			// A disconnect or the timeout ends the context; don't start another run.
+			err = ctx.Err()
 		}
 		if err != nil {
 			// Drop the encoder's tail, but still reap it.
@@ -236,6 +336,18 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 		total.TotalTokens = total.InputTokens + total.OutputTokens
 		sse.event(map[string]any{"type": "speech.audio.done", "usage": total})
 	}
+}
+
+// writeContextError answers a request whose context ended before any audio
+// was sent: nothing for a client that has gone, 503 for the timeout.
+func (s *server) writeContextError(w http.ResponseWriter, r *http.Request, model string, err error) {
+	if r.Context().Err() != nil {
+		slog.Info("client disconnected", "model", model, "err", err)
+		return
+	}
+	slog.Warn("request timed out", "model", model, "timeout", s.cfg.Limits.RequestTimeout)
+	writeError(w, http.StatusServiceUnavailable, serverError, "",
+		fmt.Sprintf("request timed out after %v waiting for or running model %s", s.cfg.Limits.RequestTimeout, model))
 }
 
 // encoder returns the Encoder for format, writing to w.
@@ -410,6 +522,7 @@ func (s *server) voices(w http.ResponseWriter, _ *http.Request) {
 // OpenAI error types.
 const (
 	invalidRequest = "invalid_request_error"
+	rateLimit      = "rate_limit_exceeded"
 	serverError    = "server_error"
 )
 

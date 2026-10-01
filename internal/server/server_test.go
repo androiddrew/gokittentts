@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"log/slog"
 	"maps"
 	"math"
 	"net/http"
@@ -42,6 +43,24 @@ type fakeEngine struct {
 	gate     chan struct{}
 	produced int
 	finished chan struct{}
+
+	stall *stall
+}
+
+// stall holds a stream before chunk at until release is closed or, unless
+// ignoresContext, the context ends, which yields the context's error. A
+// stall that ignores the context is like a model run that can't be
+// interrupted.
+type stall struct {
+	release        chan struct{}
+	at             int
+	ignoresContext bool
+}
+
+func (f *fakeEngine) setStall(st *stall) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.stall = st
 }
 
 type call struct {
@@ -53,7 +72,7 @@ type call struct {
 func (f *fakeEngine) Stream(ctx context.Context, model string, r kittentts.Request) iter.Seq2[kittentts.Chunk, error] {
 	f.mu.Lock()
 	f.calls = append(f.calls, call{model, r, ctx})
-	chunks, err := f.chunks, f.err
+	chunks, err, st := f.chunks, f.err, f.stall
 	if chunks == nil && err == nil {
 		chunks = []kittentts.Chunk{{PCM: f.pcm}}
 	}
@@ -65,6 +84,18 @@ func (f *fakeEngine) Stream(ctx context.Context, model string, r kittentts.Reque
 		for i, c := range chunks {
 			if i > 0 && f.gate != nil {
 				<-f.gate
+			}
+			if st != nil && i == st.at {
+				if st.ignoresContext {
+					<-st.release
+				} else {
+					select {
+					case <-st.release:
+					case <-ctx.Done():
+						yield(kittentts.Chunk{}, ctx.Err())
+						return
+					}
+				}
 			}
 			f.mu.Lock()
 			f.produced++
@@ -122,7 +153,12 @@ func newServer(t *testing.T) (http.Handler, *fakeEngine) {
 
 func newServerWithConfig(t *testing.T, yaml string) (http.Handler, *fakeEngine) {
 	t.Helper()
-	cfg, err := config.Parse([]byte(yaml), func(string) string { return "" })
+	return newServerWithEnv(t, yaml, nil)
+}
+
+func newServerWithEnv(t *testing.T, yaml string, env map[string]string) (http.Handler, *fakeEngine) {
+	t.Helper()
+	cfg, err := config.Parse([]byte(yaml), func(k string) string { return env[k] })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -735,5 +771,245 @@ func TestVoices(t *testing.T) {
 	}
 	if body.OpenAI["alloy"] != "Bella" || len(body.OpenAI) != 13 {
 		t.Errorf("OpenAI map %v", body.OpenAI)
+	}
+}
+
+// queueConfig gives mini a queue of one and the given request timeout.
+func queueConfig(timeout string) string {
+	return strings.NewReplacer(
+		"kitten-tts-mini-0.8: {}", "kitten-tts-mini-0.8: { max_queue: 1 }",
+		"max_input_chars: 20", "max_input_chars: 20\n  request_timeout: "+timeout,
+	).Replace(testConfig)
+}
+
+// serveInBackground serves a speech request on another goroutine.
+func serveInBackground(h http.Handler, ctx context.Context, body string) <-chan *httptest.ResponseRecorder {
+	done := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequestWithContext(ctx, http.MethodPost, "/v1/audio/speech", strings.NewReader(body)))
+		done <- rec
+	}()
+	return done
+}
+
+func waitFor(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	for deadline := time.Now().Add(5 * time.Second); !cond(); time.Sleep(time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %s", what)
+		}
+	}
+}
+
+func receiveResponse(t *testing.T, what string, c <-chan *httptest.ResponseRecorder) *httptest.ResponseRecorder {
+	t.Helper()
+	select {
+	case rec := <-c:
+		return rec
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timed out waiting for the %s", what)
+		return nil
+	}
+}
+
+const pcmRequest = `{"model":"tts-1","input":"Hi.","voice":"Leo","response_format":"pcm"}`
+
+// assertQueueOfOne checks through HTTP alone that mini, idle and configured
+// by queueConfig with a short timeout, runs one request, queues exactly one
+// more and turns the rest away with 429. The running request is stuck in a
+// run that ignores its timeout, so of two more requests, whichever order
+// they arrive in, one takes the queue place and times out (503) and the
+// other is rejected (429). Afterwards the model serves requests again.
+func assertQueueOfOne(t *testing.T, h http.Handler, eng *fakeEngine) {
+	t.Helper()
+	stuck := &stall{release: make(chan struct{}), ignoresContext: true}
+	eng.setStall(stuck)
+	calls := eng.count()
+	running := serveInBackground(h, context.Background(), pcmRequest)
+	waitFor(t, "a request to reach the engine", func() bool { return eng.count() == calls+1 })
+
+	b := serveInBackground(h, context.Background(), pcmRequest)
+	c := serveInBackground(h, context.Background(), pcmRequest)
+	codes := map[int]int{}
+	for _, rec := range []*httptest.ResponseRecorder{receiveResponse(t, "response", b), receiveResponse(t, "response", c)} {
+		codes[rec.Code]++
+		switch rec.Code {
+		case http.StatusTooManyRequests:
+			check429(t, rec)
+		case http.StatusServiceUnavailable:
+			checkTimeout(t, "queued", rec)
+		}
+	}
+	if codes[http.StatusTooManyRequests] != 1 || codes[http.StatusServiceUnavailable] != 1 {
+		t.Errorf("statuses %v, want one 429 (rejected) and one 503 (queued, then timed out)", codes)
+	}
+	if n := eng.count(); n != calls+1 {
+		t.Errorf("the engine was called %d times while the model was busy, want %d", n, calls+1)
+	}
+
+	close(stuck.release)
+	checkTimeout(t, "stuck", receiveResponse(t, "stuck response", running))
+	eng.setStall(nil)
+	if rec := speech(t, h, pcmRequest); rec.Code != http.StatusOK {
+		t.Errorf("after the queue drained: status %d: %s", rec.Code, rec.Body)
+	}
+}
+
+func check429(t *testing.T, rec *httptest.ResponseRecorder) {
+	t.Helper()
+	openAIError(t, rec, http.StatusTooManyRequests)
+	if ra := rec.Header().Get("Retry-After"); ra != "1" {
+		t.Errorf("Retry-After %q, want 1", ra)
+	}
+}
+
+func checkTimeout(t *testing.T, name string, rec *httptest.ResponseRecorder) {
+	t.Helper()
+	e := openAIError(t, rec, http.StatusServiceUnavailable)
+	if msg := e["message"].(string); !strings.Contains(msg, "timed out") {
+		t.Errorf("%s request: error %v, want a timeout message", name, e)
+	}
+}
+
+func TestFullQueueReturns429(t *testing.T) {
+	h, eng := newServerWithConfig(t, queueConfig("100ms"))
+	assertQueueOfOne(t, h, eng)
+}
+
+func TestQueuesArePerModel(t *testing.T) {
+	h, eng := newServerWithConfig(t, strings.Replace(queueConfig("1m"), "max_queue: 1", "max_queue: 0", 1))
+	stuck := &stall{release: make(chan struct{}), ignoresContext: true}
+	eng.setStall(stuck)
+	running := serveInBackground(h, context.Background(), pcmRequest)
+	waitFor(t, "the first request to reach the engine", func() bool { return eng.count() == 1 })
+	check429(t, speech(t, h, pcmRequest))
+
+	// tts-1-hd is nano, which is idle.
+	eng.setStall(nil)
+	if rec := speech(t, h, strings.Replace(pcmRequest, "tts-1", "tts-1-hd", 1)); rec.Code != http.StatusOK {
+		t.Errorf("another model: status %d: %s", rec.Code, rec.Body)
+	}
+	close(stuck.release)
+	receiveResponse(t, "running response", running)
+}
+
+func TestRequestTimeout(t *testing.T) {
+	h, eng := newServerWithConfig(t, queueConfig("100ms"))
+
+	// A stuck run and a waiting request both time out (assertQueueOfOne),
+	// and so does an engine that honours the timeout.
+	assertQueueOfOne(t, h, eng)
+	eng.setStall(&stall{release: make(chan struct{})})
+	checkTimeout(t, "cancelled", speech(t, h, pcmRequest))
+
+	// None of them kept a place.
+	eng.setStall(nil)
+	assertQueueOfOne(t, h, eng)
+}
+
+func TestRequestTimeoutMidStream(t *testing.T) {
+	h, eng := newServerWithConfig(t, queueConfig("100ms"))
+	eng.chunks = threeChunks
+	eng.setStall(&stall{release: make(chan struct{}), at: 1})
+	assertCutOff(t, h, `{"model":"tts-1","input":"A. B. C.","voice":"Leo","response_format":"pcm"}`)
+}
+
+func TestDisconnectWhileQueuedFreesThePlace(t *testing.T) {
+	h, eng := newServerWithConfig(t, queueConfig("100ms"))
+	stuck := &stall{release: make(chan struct{}), ignoresContext: true}
+	eng.setStall(stuck)
+	running := serveInBackground(h, context.Background(), pcmRequest)
+	waitFor(t, "the first request to reach the engine", func() bool { return eng.count() == 1 })
+
+	// This client leaves while the model is busy, so it never runs.
+	ctx, cancel := context.WithCancel(context.Background())
+	left := serveInBackground(h, ctx, pcmRequest)
+	cancel()
+	receiveResponse(t, "disconnected response", left)
+	close(stuck.release)
+	receiveResponse(t, "running response", running)
+	if n := eng.count(); n != 1 {
+		t.Errorf("the engine was called %d times, want 1 (the client that left never ran)", n)
+	}
+
+	// It kept no place.
+	eng.setStall(nil)
+	assertQueueOfOne(t, h, eng)
+}
+
+func TestAuth(t *testing.T) {
+	h, _ := newServerWithEnv(t, testConfig, map[string]string{"KITTEN_API_KEY": "s3cret"})
+	for _, c := range []struct {
+		name, method, path, auth string
+		want                     int
+	}{
+		{"speech without a key", http.MethodPost, "/v1/audio/speech", "", http.StatusUnauthorized},
+		{"speech with a wrong key", http.MethodPost, "/v1/audio/speech", "Bearer nope", http.StatusUnauthorized},
+		{"speech with a longer key", http.MethodPost, "/v1/audio/speech", "Bearer s3cret2", http.StatusUnauthorized},
+		{"speech with the key as Basic", http.MethodPost, "/v1/audio/speech", "Basic s3cret", http.StatusUnauthorized},
+		{"speech with the key", http.MethodPost, "/v1/audio/speech", "Bearer s3cret", http.StatusOK},
+		{"the scheme is case-insensitive", http.MethodPost, "/v1/audio/speech", "bearer s3cret", http.StatusOK},
+		{"voices without a key", http.MethodGet, "/v1/voices", "", http.StatusUnauthorized},
+		{"voices with the key", http.MethodGet, "/v1/voices", "Bearer s3cret", http.StatusOK},
+		{"unknown /v1 path without a key", http.MethodGet, "/v1/nothing", "", http.StatusUnauthorized},
+		{"healthz without a key", http.MethodGet, "/healthz", "", http.StatusOK},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			var body io.Reader
+			if c.method == http.MethodPost {
+				body = strings.NewReader(pcmRequest)
+			}
+			req := httptest.NewRequest(c.method, c.path, body)
+			if c.auth != "" {
+				req.Header.Set("Authorization", c.auth)
+			}
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+			if c.want == http.StatusUnauthorized {
+				openAIError(t, rec, http.StatusUnauthorized)
+				if rec.Header().Get("WWW-Authenticate") != "Bearer" {
+					t.Errorf("WWW-Authenticate %q, want Bearer", rec.Header().Get("WWW-Authenticate"))
+				}
+			} else if rec.Code != c.want {
+				t.Errorf("status %d, want %d: %s", rec.Code, c.want, rec.Body)
+			}
+		})
+	}
+}
+
+func TestHealthz(t *testing.T) {
+	h, _ := newServer(t)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	if rec.Code != http.StatusOK {
+		t.Errorf("status %d: %s", rec.Code, rec.Body)
+	}
+}
+
+func TestOpenServerWarning(t *testing.T) {
+	for _, c := range []struct {
+		listen, key string
+		warn        bool
+	}{
+		{":8880", "", true},
+		{"0.0.0.0:8880", "", true},
+		{"[::]:8880", "", true},
+		{"192.168.1.10:8880", "", true},
+		{"tts.example.com:8880", "", true},
+		{"127.0.0.1:8880", "", false},
+		{"127.1.2.3:8880", "", false},
+		{"[::1]:8880", "", false},
+		{"localhost:8880", "", false},
+		{":8880", "s3cret", false},
+	} {
+		var logs bytes.Buffer
+		old := slog.Default()
+		slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+		newServerWithEnv(t, testConfig, map[string]string{"KITTEN_LISTEN": c.listen, "KITTEN_API_KEY": c.key})
+		slog.SetDefault(old)
+		if got := strings.Contains(logs.String(), "KITTEN_API_KEY"); got != c.warn {
+			t.Errorf("listen %q, key %q: warned %v, want %v; logs: %s", c.listen, c.key, got, c.warn, logs.String())
+		}
 	}
 }

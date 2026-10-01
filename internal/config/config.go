@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strings"
+	"time"
 
 	"go.yaml.in/yaml/v3"
 
@@ -16,7 +18,7 @@ import (
 const DefaultAlias = "default"
 
 // Config is the whole config file. Fields that later features read (download,
-// request timeouts and so on) are ignored until those features land.
+// metrics and so on) are ignored until those features land.
 type Config struct {
 	Listen         string            `yaml:"listen"`
 	ONNXRuntimeLib string            `yaml:"onnxruntime_lib"`
@@ -28,6 +30,7 @@ type Config struct {
 	Speed          SpeedRange        `yaml:"speed"`
 	Limits         Limits            `yaml:"limits"`
 	FFmpeg         string            `yaml:"ffmpeg"` // path or name on PATH; empty disables opus, aac and flac
+	APIKey         string            `yaml:"-"`      // from KITTEN_API_KEY only; empty turns auth off
 }
 
 // Model is one entry under models.
@@ -35,6 +38,19 @@ type Model struct {
 	Device         kittentts.Device `yaml:"device"`
 	CUDADeviceID   int              `yaml:"cuda_device_id"`
 	IntraOpThreads int              `yaml:"intra_op_threads"`
+	MaxQueue       *int             `yaml:"max_queue"` // requests that may wait behind the running one; nil means DefaultMaxQueue
+}
+
+// DefaultMaxQueue is a model's queue size when max_queue is not set.
+const DefaultMaxQueue = 8
+
+// QueueSize is how many requests may wait for the model behind the one
+// that is running.
+func (m Model) QueueSize() int {
+	if m.MaxQueue == nil {
+		return DefaultMaxQueue
+	}
+	return *m.MaxQueue
 }
 
 // SpeedRange is the range effective speeds are clamped to.
@@ -45,7 +61,8 @@ type SpeedRange struct {
 
 // Limits are per-request limits.
 type Limits struct {
-	MaxInputChars int `yaml:"max_input_chars"`
+	MaxInputChars  int           `yaml:"max_input_chars"`
+	RequestTimeout time.Duration `yaml:"request_timeout"` // covers queue wait and synthesis
 }
 
 // Load reads the config file at path, applies environment overrides and
@@ -63,14 +80,15 @@ func Load(path string) (*Config, error) {
 }
 
 // Parse decodes a config, fills in defaults, applies the KITTEN_DEFAULT_MODEL
-// and KITTEN_LISTEN overrides from getenv, and validates it.
+// and KITTEN_LISTEN overrides and the KITTEN_API_KEY setting from getenv, and
+// validates it.
 func Parse(data []byte, getenv func(string) string) (*Config, error) {
 	c := Config{
 		Listen:       ":8880",
 		ModelsDir:    "/var/lib/gokittentts/models",
 		DefaultModel: "kitten-tts-mini-0.8",
 		Speed:        SpeedRange{Min: 0.5, Max: 2.0},
-		Limits:       Limits{MaxInputChars: 4096},
+		Limits:       Limits{MaxInputChars: 4096, RequestTimeout: 120 * time.Second},
 		FFmpeg:       "ffmpeg",
 	}
 	if err := yaml.Unmarshal(data, &c); err != nil {
@@ -88,6 +106,7 @@ func Parse(data []byte, getenv func(string) string) (*Config, error) {
 	if v := getenv("KITTEN_LISTEN"); v != "" {
 		c.Listen = v
 	}
+	c.APIKey = getenv("KITTEN_API_KEY")
 	if err := c.validate(); err != nil {
 		return nil, fmt.Errorf("config: %w", err)
 	}
@@ -112,6 +131,9 @@ func (c *Config) validate() error {
 		if m.Device != "" && m.Device != kittentts.CPU && m.Device != "cuda" {
 			errs = append(errs, fmt.Errorf("model %s: unknown device %q (want cpu or cuda)", name, m.Device))
 		}
+		if m.QueueSize() < 0 {
+			errs = append(errs, fmt.Errorf("model %s: max_queue must not be negative, got %d", name, m.QueueSize()))
+		}
 	}
 	if _, ok := c.Models[c.DefaultModel]; !ok && len(c.Models) > 0 {
 		errs = append(errs, fmt.Errorf("default_model %s is not under models", c.DefaultModel))
@@ -131,6 +153,12 @@ func (c *Config) validate() error {
 	}
 	if c.Limits.MaxInputChars <= 0 {
 		errs = append(errs, fmt.Errorf("limits: max_input_chars must be positive, got %d", c.Limits.MaxInputChars))
+	}
+	if c.APIKey != "" && strings.TrimSpace(c.APIKey) == "" {
+		errs = append(errs, errors.New("KITTEN_API_KEY is only whitespace; unset it to turn auth off"))
+	}
+	if c.Limits.RequestTimeout <= 0 {
+		errs = append(errs, fmt.Errorf("limits: request_timeout must be positive, got %v", c.Limits.RequestTimeout))
 	}
 	return errors.Join(errs...)
 }
