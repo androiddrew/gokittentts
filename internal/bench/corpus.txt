@@ -1,0 +1,27 @@
+# The bench corpus: one request per line, with \n for a newline; blank lines
+# and # comments are skipped. Runs are only comparable over the same corpus,
+# and every record carries its SHA-256, so change it deliberately and say so
+# in the release notes. It mixes one-word answers, single sentences and
+# multi-sentence chat replies with markdown, numbers, money, dates and units,
+# read with the markdown pass and normalizer on, as the server reads them by
+# default.
+Yes.
+Hello from Go.
+Sure, I can help with that.
+The kettle is boiling, so the tea will be ready in a minute.
+Turn left at the second light, then keep going until you see the bakery on your right.
+It's 7:45 a.m. on Tuesday, March 3rd, and the forecast says 18°C with light rain.
+Your total comes to $42.50, which is 15% less than last month.
+Version 2.4.1 fixes the crash on startup and makes downloads about twice as fast.
+Dr. Patel will see you at 3 p.m. Please bring your insurance card and a list of your current medications.
+**Short answer:** yes. The longer answer is that it depends on how often you run the job and how much memory the machine has.
+Here are three things to try: restart the router, check that the cable is seated, and update the firmware from the vendor's website.
+The trail is 12.5 km long and climbs about 800 m, so plan for four to five hours, and bring more water than you think you need.
+Photosynthesis turns light, water and carbon dioxide into sugar and oxygen. Plants store the sugar as starch, and the oxygen is released into the air.
+## Summary\n\n- The build passed on all three platforms.\n- Two tests are flaky and need a closer look.\n- The release is on track for Friday.
+I couldn't find a file called `config.yaml` in that folder. Did you mean the one in your home directory, or should I create a new one with the default settings?
+In 1969, Apollo 11 landed on the Moon. Neil Armstrong stepped onto the surface about six and a half hours later, and some 600 million people watched it on television.
+To bake the bread, mix 500 g of flour with 350 ml of warm water, 10 g of salt and 7 g of yeast. Knead it for ten minutes, let it rise for an hour, shape it, and bake at 230°C for 35 minutes.
+That's a great question! The short version is that caching trades memory for speed. When the same data is requested again, it's served from the cache instead of being recomputed, which is faster but means you have to decide when the cached copy is too old to trust.
+The meeting has moved from Thursday to Friday at 10 a.m., in room 4B. Agenda: budget review, the hiring plan, and an update on the data center migration. If you can't make it, send your notes to the team by end of day Thursday so we can cover your items.
+Once upon a time, in a village at the edge of a great forest, there lived a clockmaker who could fix anything except her own clock. Every morning it struck thirteen, and every morning she laughed, wound it up again, and went to work.

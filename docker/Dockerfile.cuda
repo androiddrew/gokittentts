@@ -35,8 +35,11 @@ COPY --from=src /usr/local/go /usr/local/go
 COPY --from=src /src /src
 ENV PATH=/usr/local/go/bin:$PATH GOPATH=/go
 WORKDIR /src
+# Stamped into the binary, for bench records.
+ARG VCS_REF=unknown
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
-	CGO_ENABLED=1 go build -tags espeak -trimpath -buildvcs=false -o /out/gokittentts ./cmd/gokittentts
+	CGO_ENABLED=1 go build -tags espeak -trimpath -buildvcs=false -ldflags "-X main.revision=$VCS_REF" \
+		-o /out/gokittentts ./cmd/gokittentts
 
 # The baked models, pulled with the manifest's checks.
 FROM src AS models

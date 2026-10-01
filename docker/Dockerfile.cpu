@@ -29,6 +29,8 @@ RUN set -eux; \
 		"libespeak-ng-dev:$TARGETARCH=$ESPEAK_NG_VERSION" \
 		"libespeak-ng1:$TARGETARCH=$ESPEAK_NG_VERSION"; \
 	rm -rf /var/lib/apt/lists/*
+# Stamped into the binary, for bench records.
+ARG VCS_REF=unknown
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
 	set -eux; \
 	case "$TARGETARCH" in \
@@ -37,7 +39,8 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 		*) echo "unsupported TARGETARCH $TARGETARCH" >&2; exit 1 ;; \
 	esac; \
 	CGO_ENABLED=1 GOOS=linux GOARCH="$TARGETARCH" CC="$cc" \
-		go build -tags espeak -trimpath -buildvcs=false -o /out/gokittentts ./cmd/gokittentts
+		go build -tags espeak -trimpath -buildvcs=false -ldflags "-X main.revision=$VCS_REF" \
+		-o /out/gokittentts ./cmd/gokittentts
 
 # The baked models, pulled with the manifest's checks. They don't depend on
 # the target, so this stage runs on the build platform.
