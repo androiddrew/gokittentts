@@ -32,3 +32,5 @@
     - The example config parses: `pull --config` accepts it.
     - The macOS steps are untested. `onnxruntime_go` needs cgo, so even a darwin compile can't be checked from Linux.
 - **Docker bench examples** now pass `--hostname "$(hostname)"`, because a record made in a container otherwise names the container's ID as the host.
+
+**2026-10-01, decision (owner).** The x86_64 mini first-audio miss is accepted for v0.1.0, with the gate model and targets unchanged. It stays visible: it's recorded as a fail in `bench/v0.1.0/` and marked "accepted for v0.1.0" in the README results table. The Pi 5 run is the only open item.

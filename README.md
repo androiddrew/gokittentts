@@ -293,11 +293,11 @@ Recorded at commit `f37842a` with 5 runs, in [`bench/v0.1.0/`](bench/v0.1.0/). T
 | Target | Model | Machine | RTF p50 / p95 | First audio p50 / p95 | Gate |
 | --- | --- | --- | --- | --- | --- |
 | Raspberry Pi 5 | nano-fp32 | Pi 5 | not run yet | not run yet | pending |
-| x86_64 CPU | mini | Ryzen 5 5600X, plain binary | 0.574 / 0.659 | 1.89 s / 3.86 s | **fail** (first audio) |
+| x86_64 CPU | mini | Ryzen 5 5600X, plain binary | 0.574 / 0.659 | 1.89 s / 3.86 s | **fail** (first audio), accepted for v0.1.0 |
 | CUDA 12 image | nano-fp32 | RTX 4090, `gokittentts:cuda12` | 0.039 / 0.080 | 0.18 s / 0.25 s | pass |
 | CUDA 13 image | nano-fp32 | RTX 4090, `gokittentts:cuda13` | 0.024 / 0.047 | 0.10 s / 0.16 s | pass |
 
-Mini is faster than real time on the Ryzen, but it can't start speaking within 1 s. At an RTF near 0.58, any first chunk over about 1.7 s of audio takes more than a second, and even "Hello from Go." takes 1.2 s.
+Mini is faster than real time on the Ryzen, but it can't start speaking within 1 s. At an RTF near 0.58, any first chunk over about 1.7 s of audio takes more than a second, and even "Hello from Go." takes 1.2 s. The miss is accepted for v0.1.0. Use nano-fp32 or a GPU where speech must start within a second.
 
 ### Reading the results
 

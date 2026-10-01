@@ -23,7 +23,7 @@ ORT_GPU_LIB := $(ORT_GPU_DIR)/lib/libonnxruntime.so.$(ORT_VERSION)
 MODELS_DIR := models
 MODELS := kitten-tts-mini-0.8 kitten-tts-micro-0.8 kitten-tts-nano-0.8-int8 kitten-tts-nano-0.8-fp32
 
-.PHONY: build test test-native test-cuda onnxruntime-gpu image-cpu image-pi5 image-cuda12 image-cuda13 golden golden-test reference emoji-table
+.PHONY: build test test-native test-cuda onnxruntime-gpu image-cpu image-pi5 image-cuda12 image-cuda13 golden golden-test bench-python-ref reference emoji-table
 
 build:
 	CGO_ENABLED=1 go build -tags espeak -o bin/gokittentts ./cmd/gokittentts
@@ -103,6 +103,15 @@ golden:
 # End-to-end tests of the golden generator (needs uv, network, libespeak-ng).
 golden-test:
 	uv run --no-project --with pytest python3 -m pytest scripts/test_make_golden.py -q
+
+# Times the Python reference over the bench corpus, for comparison with
+# `gokittentts bench` on the same machine. PyPI has no onnxruntime 1.29.1.
+REF_MODEL ?= kitten-tts-mini-0.8
+REF_RUNS ?= 5
+bench-python-ref: $(MODELS_DIR)/$(REF_MODEL)/current/config.json
+	uv run --no-project --with onnxruntime==1.29.0 --with "phonemizer>=3.4.0" --with espeakng_loader \
+		--with soundfile --with numpy python3 scripts/bench_python_ref.py $(MODELS_DIR)/$(REF_MODEL)/current \
+		--runs $(REF_RUNS) $(if $(REF_OUT),--out $(REF_OUT))
 
 # Re-vendor the reference sources at KITTENTTS_REF.
 reference:
