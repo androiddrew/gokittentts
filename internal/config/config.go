@@ -17,8 +17,8 @@ import (
 // DefaultAlias is the model_aliases target that means default_model.
 const DefaultAlias = "default"
 
-// Config is the whole config file. Fields that later features read (download,
-// metrics and so on) are ignored until those features land.
+// Config is the whole config file. Fields that later features read (download
+// and so on) are ignored until those features land.
 type Config struct {
 	Listen         string            `yaml:"listen"`
 	ONNXRuntimeLib string            `yaml:"onnxruntime_lib"`
@@ -29,8 +29,10 @@ type Config struct {
 	Voices         map[string]string `yaml:"voices"`        // OpenAI voice name -> Kitten voice name
 	Speed          SpeedRange        `yaml:"speed"`
 	Limits         Limits            `yaml:"limits"`
-	FFmpeg         string            `yaml:"ffmpeg"` // path or name on PATH; empty disables opus, aac and flac
-	APIKey         string            `yaml:"-"`      // from KITTEN_API_KEY only; empty turns auth off
+	FFmpeg         string            `yaml:"ffmpeg"`     // path or name on PATH; empty disables opus, aac and flac
+	Metrics        bool              `yaml:"metrics"`    // serve /metrics
+	LogFormat      string            `yaml:"log_format"` // json or text
+	APIKey         string            `yaml:"-"`          // from KITTEN_API_KEY only; empty turns auth off
 }
 
 // Model is one entry under models.
@@ -90,6 +92,8 @@ func Parse(data []byte, getenv func(string) string) (*Config, error) {
 		Speed:        SpeedRange{Min: 0.5, Max: 2.0},
 		Limits:       Limits{MaxInputChars: 4096, RequestTimeout: 120 * time.Second},
 		FFmpeg:       "ffmpeg",
+		Metrics:      true,
+		LogFormat:    "json",
 	}
 	if err := yaml.Unmarshal(data, &c); err != nil {
 		return nil, fmt.Errorf("config: %w", err)
@@ -156,6 +160,9 @@ func (c *Config) validate() error {
 	}
 	if c.APIKey != "" && strings.TrimSpace(c.APIKey) == "" {
 		errs = append(errs, errors.New("KITTEN_API_KEY is only whitespace; unset it to turn auth off"))
+	}
+	if c.LogFormat != "json" && c.LogFormat != "text" {
+		errs = append(errs, fmt.Errorf("log_format must be json or text, got %q", c.LogFormat))
 	}
 	if c.Limits.RequestTimeout <= 0 {
 		errs = append(errs, fmt.Errorf("limits: request_timeout must be positive, got %v", c.Limits.RequestTimeout))

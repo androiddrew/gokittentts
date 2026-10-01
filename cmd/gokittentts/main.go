@@ -69,6 +69,11 @@ func serve(args []string) error {
 	if err != nil {
 		return err
 	}
+	if cfg.LogFormat == "text" {
+		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))
+	} else {
+		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
+	}
 	if cfg.ONNXRuntimeLib == "" {
 		return fmt.Errorf("%s: onnxruntime_lib is required", *configPath)
 	}

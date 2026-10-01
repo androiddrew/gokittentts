@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strings"
 	"sync/atomic"
+	"time"
 	"unicode/utf8"
 
 	"github.com/androiddrew/gokittentts/internal/audio"
@@ -67,15 +68,16 @@ var formats = map[string]format{
 const defaultFormat = "mp3"
 
 type server struct {
-	cfg    *config.Config
-	engine Engine
-	ffmpeg string            // resolved path, or empty when ffmpeg is disabled or missing
-	queues map[string]*queue // by model name
+	cfg     *config.Config
+	engine  Engine
+	ffmpeg  string            // resolved path, or empty when ffmpeg is disabled or missing
+	queues  map[string]*queue // by model name
+	metrics *metrics          // nil when metrics are off
 }
 
 // New returns the HTTP handler for cfg, synthesizing with engine. If cfg's
 // ffmpeg can't be found, opus, aac and flac are rejected. With an API key
-// set, /v1/* requires it; /healthz is always open.
+// set, /v1/* requires it; /healthz and /metrics are always open.
 func New(cfg *config.Config, engine Engine) http.Handler {
 	s := &server{cfg: cfg, engine: engine, queues: make(map[string]*queue, len(cfg.Models))}
 	for name, m := range cfg.Models {
@@ -92,6 +94,9 @@ func New(cfg *config.Config, engine Engine) http.Handler {
 			s.ffmpeg = path
 		}
 	}
+	if cfg.Metrics {
+		s.metrics = newMetrics(cfg, s.queues, s.supportedFormats())
+	}
 	api := http.NewServeMux()
 	api.HandleFunc("POST /v1/audio/speech", s.speech)
 	api.HandleFunc("GET /v1/voices", s.voices)
@@ -100,6 +105,9 @@ func New(cfg *config.Config, engine Engine) http.Handler {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
+	if s.metrics != nil {
+		mux.Handle("GET /metrics", s.metrics.handler)
+	}
 	return mux
 }
 
@@ -142,6 +150,7 @@ func isLoopback(addr string) bool {
 type queue struct {
 	admitted chan struct{} // a token per running or waiting request
 	running  chan struct{} // a token for the running request
+	waiting  atomic.Int64  // admitted requests not yet running
 }
 
 func newQueue(size int) *queue {
@@ -158,6 +167,8 @@ func (q *queue) enter(ctx context.Context) (release func(), err error) {
 	default:
 		return nil, errQueueFull
 	}
+	q.waiting.Add(1)
+	defer q.waiting.Add(-1)
 	select {
 	case q.running <- struct{}{}:
 		return func() { <-q.running; <-q.admitted }, nil
@@ -181,50 +192,64 @@ type speechRequest struct {
 }
 
 func (s *server) speech(w http.ResponseWriter, r *http.Request) {
+	rec := &requestRecord{start: time.Now()}
+	// Deferred calls also run when the response is aborted with a panic.
+	defer s.finish(rec)
+
 	var req speechRequest
 	if status, msg := s.decode(w, r, &req); status != 0 {
-		writeError(w, status, invalidRequest, "", msg)
+		rec.fail(w, status, invalidRequest, "", msg)
 		return
 	}
 	if req.Instructions != "" {
 		slog.Debug("ignoring instructions", "instructions", req.Instructions)
 	}
+	format := req.ResponseFormat
+	if format == "" {
+		format = defaultFormat
+	}
+	rec.model, rec.format = req.Model, format
+	rec.voice, _ = voiceName(req.Voice)
+	if req.Input != nil {
+		rec.inputChars = utf8.RuneCountInString(*req.Input)
+	}
+	if _, ok := formats[format]; ok {
+		rec.formatLabel = format
+	}
 
 	model, ok := s.resolveModel(req.Model)
 	if !ok {
-		writeError(w, http.StatusBadRequest, invalidRequest, "model",
+		rec.fail(w, http.StatusBadRequest, invalidRequest, "model",
 			fmt.Sprintf("unknown model %q; configured models are %s and aliases %s",
 				req.Model, strings.Join(sortedKeys(s.cfg.Models), ", "), strings.Join(sortedKeys(s.cfg.ModelAliases), ", ")))
 		return
 	}
+	rec.model, rec.modelLabel = model, model
 
 	if req.Input == nil || *req.Input == "" {
-		writeError(w, http.StatusBadRequest, invalidRequest, "input", "input is required")
+		rec.fail(w, http.StatusBadRequest, invalidRequest, "input", "input is required")
 		return
 	}
-	if n := utf8.RuneCountInString(*req.Input); n > s.cfg.Limits.MaxInputChars {
-		writeError(w, http.StatusBadRequest, invalidRequest, "input",
-			fmt.Sprintf("input is %d characters; the limit is %d", n, s.cfg.Limits.MaxInputChars))
+	if rec.inputChars > s.cfg.Limits.MaxInputChars {
+		rec.fail(w, http.StatusBadRequest, invalidRequest, "input",
+			fmt.Sprintf("input is %d characters; the limit is %d", rec.inputChars, s.cfg.Limits.MaxInputChars))
 		return
 	}
 
 	voice, ok := s.resolveVoice(req.Voice)
 	if !ok {
-		writeError(w, http.StatusBadRequest, invalidRequest, "voice", s.unknownVoiceMessage(req.Voice))
+		rec.fail(w, http.StatusBadRequest, invalidRequest, "voice", s.unknownVoiceMessage(req.Voice))
 		return
 	}
+	rec.voice = voice
 
-	format := req.ResponseFormat
-	if format == "" {
-		format = defaultFormat
-	}
 	f, ok := formats[format]
 	if !ok || f.ffmpeg && s.ffmpeg == "" {
 		reason := "is not supported"
 		if ok {
 			reason = "needs ffmpeg, which is not available"
 		}
-		writeError(w, http.StatusBadRequest, invalidRequest, "response_format",
+		rec.fail(w, http.StatusBadRequest, invalidRequest, "response_format",
 			fmt.Sprintf("response_format %q %s; supported formats are %s", format, reason, strings.Join(s.supportedFormats(), ", ")))
 		return
 	}
@@ -234,7 +259,7 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 		speed = *req.Speed
 	}
 	if speed < minSpeed || speed > maxSpeed {
-		writeError(w, http.StatusBadRequest, invalidRequest, "speed",
+		rec.fail(w, http.StatusBadRequest, invalidRequest, "speed",
 			fmt.Sprintf("speed %v is outside %v to %v", speed, minSpeed, maxSpeed))
 		return
 	}
@@ -242,7 +267,7 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 	switch req.StreamFormat {
 	case "", "audio", "sse":
 	default:
-		writeError(w, http.StatusBadRequest, invalidRequest, "stream_format",
+		rec.fail(w, http.StatusBadRequest, invalidRequest, "stream_format",
 			fmt.Sprintf("stream_format %q is not supported; use audio or sse", req.StreamFormat))
 		return
 	}
@@ -250,22 +275,24 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 	// The timeout covers the queue wait and synthesis.
 	ctx, cancel := context.WithTimeout(r.Context(), s.cfg.Limits.RequestTimeout)
 	defer cancel()
+	queued := time.Now()
 	release, err := s.queues[model].enter(ctx)
+	rec.queueWait = time.Since(queued)
 	if errors.Is(err, errQueueFull) {
 		w.Header().Set("Retry-After", "1")
-		writeError(w, http.StatusTooManyRequests, rateLimit, "",
+		rec.fail(w, http.StatusTooManyRequests, rateLimit, "",
 			fmt.Sprintf("model %s is busy and its queue is full; retry shortly", model))
 		return
 	}
 	if err != nil {
-		s.writeContextError(w, r, model, err)
+		s.writeContextError(w, r, rec, err)
 		return
 	}
 	defer release()
 
 	// Pull the first chunk before sending headers, so a failure that comes
 	// before any audio is still an error response.
-	next, stop := iter.Pull2(s.engine.Stream(ctx, model, kittentts.Request{
+	pull, stop := iter.Pull2(s.engine.Stream(ctx, model, kittentts.Request{
 		Text:      *req.Input,
 		Voice:     voice,
 		Speed:     max(s.cfg.Speed.Min, min(s.cfg.Speed.Max, float32(speed))),
@@ -273,18 +300,22 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 		Markdown:  req.Markdown == nil || *req.Markdown,
 	}))
 	defer stop()
+	next := func() (kittentts.Chunk, error, bool) {
+		start := time.Now()
+		defer func() { rec.synthesis += time.Since(start) }()
+		return pull()
+	}
 	chunk, err, more := next()
 	if ctx.Err() != nil {
-		s.writeContextError(w, r, model, ctx.Err())
+		s.writeContextError(w, r, rec, ctx.Err())
 		return
 	}
 	if err != nil {
-		slog.Error("synthesis failed", "model", model, "err", err)
-		writeError(w, http.StatusInternalServerError, serverError, "", "synthesis failed: "+err.Error())
+		rec.fail(w, http.StatusInternalServerError, serverError, "", "synthesis failed: "+err.Error())
 		return
 	}
 
-	sink := &flushWriter{w: w, rc: http.NewResponseController(w)}
+	sink := &flushWriter{w: w, rc: http.NewResponseController(w), first: func() { rec.firstAudio = time.Since(rec.start) }}
 	var out io.Writer = sink
 	var sse *sseWriter
 	if req.StreamFormat == "sse" {
@@ -298,11 +329,12 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 	// The headers go first: ffmpeg's output is copied to the response from
 	// another goroutine as soon as it starts.
 	w.WriteHeader(http.StatusOK)
+	rec.status = http.StatusOK
 	sink.rc.Flush()
 	enc, err := s.encoder(ctx, out, format)
 	if err != nil {
-		slog.Error("starting encoder", "format", format, "err", err)
-		panic(http.ErrAbortHandler)
+		rec.abort(r, fmt.Errorf("starting encoder: %w", err))
+		return
 	}
 
 	var total usage
@@ -313,6 +345,8 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 			err = enc.Write(chunk.PCM)
 		}
 		if err == nil {
+			rec.chunks++
+			rec.samples += len(chunk.PCM)
 			// A disconnect or the timeout ends the context; don't start another run.
 			err = ctx.Err()
 		}
@@ -320,17 +354,13 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 			// Drop the encoder's tail, but still reap it.
 			sink.discard.Store(true)
 			enc.Close()
-			if r.Context().Err() != nil {
-				slog.Info("client disconnected", "model", model, "err", err)
-				return
-			}
-			slog.Error("stream failed", "model", model, "format", format, "err", err)
-			panic(http.ErrAbortHandler) // cut the response off so it can't pass for complete audio
+			rec.abort(r, err)
+			return
 		}
 	}
 	if err := enc.Close(); err != nil {
-		slog.Error("encoding failed", "format", format, "err", err)
-		panic(http.ErrAbortHandler)
+		rec.abort(r, fmt.Errorf("encoding: %w", err))
+		return
 	}
 	if sse != nil {
 		total.TotalTokens = total.InputTokens + total.OutputTokens
@@ -340,14 +370,96 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 
 // writeContextError answers a request whose context ended before any audio
 // was sent: nothing for a client that has gone, 503 for the timeout.
-func (s *server) writeContextError(w http.ResponseWriter, r *http.Request, model string, err error) {
+func (s *server) writeContextError(w http.ResponseWriter, r *http.Request, rec *requestRecord, err error) {
 	if r.Context().Err() != nil {
-		slog.Info("client disconnected", "model", model, "err", err)
+		rec.status, rec.err = statusClientClosed, "client disconnected: "+err.Error()
 		return
 	}
-	slog.Warn("request timed out", "model", model, "timeout", s.cfg.Limits.RequestTimeout)
-	writeError(w, http.StatusServiceUnavailable, serverError, "",
-		fmt.Sprintf("request timed out after %v waiting for or running model %s", s.cfg.Limits.RequestTimeout, model))
+	rec.fail(w, http.StatusServiceUnavailable, serverError, "",
+		fmt.Sprintf("request timed out after %v waiting for or running model %s", s.cfg.Limits.RequestTimeout, rec.model))
+}
+
+// statusClientClosed is the status logged and counted for a client that
+// disconnected before its response ended (nginx's 499).
+const statusClientClosed = 499
+
+// requestRecord is what a speech request logs and counts when it ends.
+type requestRecord struct {
+	start                   time.Time
+	model, voice, format    string // resolved, or as requested if they don't resolve
+	modelLabel, formatLabel string // metric labels: empty unless configured or supported
+	inputChars              int
+	chunks, samples         int           // audio written to the response
+	synthesis               time.Duration // spent in the engine
+	firstAudio              time.Duration // from the start to the first audio byte sent
+	queueWait               time.Duration
+	status                  int    // the HTTP status, or statusClientClosed; see abort
+	err                     string // why the request failed
+}
+
+// fail records and writes an error response.
+func (rec *requestRecord) fail(w http.ResponseWriter, status int, typ, param, message string) {
+	rec.status, rec.err = status, message
+	writeError(w, status, typ, param, message)
+}
+
+// abort records why a started stream failed and, unless the client has
+// gone, cuts the response off so it can't pass for complete audio. The
+// response was 200, but it is recorded as 499 for a client that
+// disconnected, 503 for the timeout and 500 for anything else.
+func (rec *requestRecord) abort(r *http.Request, err error) {
+	rec.err = err.Error()
+	if r.Context().Err() != nil {
+		rec.status = statusClientClosed
+		return
+	}
+	rec.status = http.StatusInternalServerError
+	if errors.Is(err, context.DeadlineExceeded) {
+		rec.status = http.StatusServiceUnavailable
+	}
+	panic(http.ErrAbortHandler)
+}
+
+func (rec *requestRecord) audioSeconds() float64 {
+	return float64(rec.samples) / kittentts.SampleRate
+}
+
+// rtf is the real-time factor: synthesis seconds per second of audio, or 0
+// without audio.
+func (rec *requestRecord) rtf() float64 {
+	if rec.samples == 0 {
+		return 0
+	}
+	return rec.synthesis.Seconds() / rec.audioSeconds()
+}
+
+// finish writes the request's log line and counts it.
+func (s *server) finish(rec *requestRecord) {
+	attrs := []any{
+		"model", rec.model,
+		"voice", rec.voice,
+		"format", rec.format,
+		"input_chars", rec.inputChars,
+		"chunks", rec.chunks,
+		"audio_seconds", rec.audioSeconds(),
+		"synthesis_seconds", rec.synthesis.Seconds(),
+		"rtf", rec.rtf(),
+		"time_to_first_audio_seconds", rec.firstAudio.Seconds(),
+		"queue_wait_seconds", rec.queueWait.Seconds(),
+		"duration_seconds", time.Since(rec.start).Seconds(),
+		"status", rec.status,
+	}
+	level := slog.LevelInfo
+	if rec.err != "" {
+		attrs = append(attrs, "error", rec.err)
+	}
+	if rec.status >= 500 {
+		level = slog.LevelError
+	}
+	slog.Log(context.Background(), level, "speech", attrs...)
+	if s.metrics != nil {
+		s.metrics.observe(rec)
+	}
 }
 
 // encoder returns the Encoder for format, writing to w.
@@ -375,16 +487,22 @@ type usage struct {
 }
 
 // flushWriter flushes the response after every Write. Once discard is set,
-// it drops writes but reports success, so an encoder can still drain.
+// it drops writes but reports success, so an encoder can still drain. first,
+// if set, is called before the first Write.
 type flushWriter struct {
 	w       io.Writer
 	rc      *http.ResponseController
 	discard atomic.Bool
+	first   func()
 }
 
 func (f *flushWriter) Write(p []byte) (int, error) {
 	if f.discard.Load() {
 		return len(p), nil
+	}
+	if f.first != nil {
+		f.first()
+		f.first = nil
 	}
 	n, err := f.w.Write(p)
 	if err != nil {
