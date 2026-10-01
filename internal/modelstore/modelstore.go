@@ -42,7 +42,9 @@ type Source struct {
 }
 
 // Manifest pins the KittenTTS 0.8 models by revision and SHA-256
-// (docs/ORIGINAL_SPEC.md section 3.1).
+// (docs/ORIGINAL_SPEC.md section 3.1), and mini converted from int8 to fp32
+// and fp16 for the GPU: the same model and voices, with the int8 layers
+// dequantized so the whole graph runs on CUDA.
 var Manifest = map[string]Source{
 	"kitten-tts-mini-0.8": {"KittenML/kitten-tts-mini-0.8", "c02725660cea441db4c383af69f1f26f5cd00947", []File{
 		{"config.json", "6b160bc9b19e24ecb21e84bc14f8a7da21fdf47ec72d42450bc5cf514b61804a"},
@@ -63,6 +65,16 @@ var Manifest = map[string]Source{
 		{"config.json", "b66006ccbeccd4de5fc3c9272059c47f5725df7215fd889785c03602652fab64"},
 		{"kitten_tts_nano_v0_8.onnx", "320564d2615f235de972ca27a7f39551c94185cfa24ca85b07a29084135f1e5e"},
 		{"voices.npz", "8aa7cee235abb0739cb51e6559685f65a4dacd95568833d05699b1633f519b3f"},
+	}},
+	"kitten-tts-mini-0.8-fp32": {"androiddrew/kitten-tts-mini-0.8-fp32", "586241f0bc2baf1798a706bf19557c16f609bc78", []File{
+		{"config.json", "b891fb6e80e0ac422c1a394e8c59cc85159cb159f5d5334b084e948af1eb52c4"},
+		{"kitten_tts_mini_v0_8_fp32.onnx", "27a53443154bcd73f3133d2d7a2d0d6aa8308083b3b7f1482d1ee53920306b4d"},
+		{"voices.npz", "40ad2638952b77b7b2f30127e2608e169fc69dd256b53bd8aaa3409a33193c42"},
+	}},
+	"kitten-tts-mini-0.8-fp16": {"androiddrew/kitten-tts-mini-0.8-fp16", "6725a68dd96359549e45626738de4dbc0805e46f", []File{
+		{"config.json", "27e0bc66cfd44ea7a176f294e04854c7ea7aa3cdfba015d6a88ddbc74e8f42ee"},
+		{"kitten_tts_mini_v0_8_fp16.onnx", "8c3672c4437fc9b352d6e8d2d49eb5b38f345edabe4eace817aa202f3c455603"},
+		{"voices.npz", "40ad2638952b77b7b2f30127e2608e169fc69dd256b53bd8aaa3409a33193c42"},
 	}},
 }
 

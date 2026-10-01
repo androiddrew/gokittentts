@@ -446,14 +446,27 @@ func TestCustomModelIsDownloadedWithAWarningAndNoHashCheck(t *testing.T) {
 	}
 }
 
-func TestManifestPinsTheFourModels(t *testing.T) {
-	for _, name := range []string{"kitten-tts-mini-0.8", "kitten-tts-micro-0.8", "kitten-tts-nano-0.8-int8", "kitten-tts-nano-0.8-fp32"} {
+// The four KittenML models, and mini converted from int8 to fp32 and fp16 for
+// the GPU (androiddrew/kitten-tts-mini-0.8-fp32 and -fp16).
+func TestManifestPinsTheModels(t *testing.T) {
+	repos := map[string]string{
+		"kitten-tts-mini-0.8":      "KittenML/kitten-tts-mini-0.8",
+		"kitten-tts-micro-0.8":     "KittenML/kitten-tts-micro-0.8",
+		"kitten-tts-nano-0.8-int8": "KittenML/kitten-tts-nano-0.8-int8",
+		"kitten-tts-nano-0.8-fp32": "KittenML/kitten-tts-nano-0.8-fp32",
+		"kitten-tts-mini-0.8-fp32": "androiddrew/kitten-tts-mini-0.8-fp32",
+		"kitten-tts-mini-0.8-fp16": "androiddrew/kitten-tts-mini-0.8-fp16",
+	}
+	if len(modelstore.Manifest) != len(repos) {
+		t.Errorf("manifest has %d models, want %d", len(modelstore.Manifest), len(repos))
+	}
+	for name, repo := range repos {
 		src, ok := modelstore.Manifest[name]
 		if !ok {
 			t.Errorf("%s is not in the manifest", name)
 			continue
 		}
-		if src.Repo != "KittenML/"+name || len(src.Revision) != 40 || len(src.Files) != 3 {
+		if src.Repo != repo || len(src.Revision) != 40 || len(src.Files) != 3 {
 			t.Errorf("%s: %+v", name, src)
 		}
 		for _, f := range src.Files {

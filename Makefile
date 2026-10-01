@@ -88,8 +88,10 @@ image-pi5:
 		--build-arg BAKE_MODELS=$(PI5_MODEL) --build-arg DEFAULT_MODEL=$(PI5_MODEL) \
 		--build-arg VCS_REF=$(VCS_REF) --load -t $(IMAGE):pi5 .
 
-# The CUDA images are amd64 only, and bake and default to nano-fp32.
-image-cuda12 image-cuda13: BAKE_MODELS = kitten-tts-nano-0.8-fp32
+# The CUDA images are amd64 only. They bake and default to mini-fp32, mini's
+# GPU conversion, and also bake mini-fp16 and nano-fp32.
+CUDA_BAKE_MODELS := kitten-tts-mini-0.8-fp32,kitten-tts-mini-0.8-fp16,kitten-tts-nano-0.8-fp32
+image-cuda12 image-cuda13: BAKE_MODELS = $(CUDA_BAKE_MODELS)
 image-cuda12 image-cuda13: image-cuda%:
 	docker buildx build --platform linux/amd64 -f docker/Dockerfile.cuda \
 		--build-arg CUDA=$* --build-arg BAKE_MODELS=$(BAKE_MODELS) --build-arg VCS_REF=$(VCS_REF) \

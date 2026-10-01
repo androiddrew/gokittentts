@@ -21,8 +21,9 @@ func TestDockerConfigs(t *testing.T) {
 		preload      []string
 	}{
 		{"config.yaml", "kitten-tts-mini-0.8", kittentts.CPU, nil},
-		// Without a usable GPU, the CUDA images exit instead of starting.
-		{"config.cuda.yaml", "kitten-tts-nano-0.8-fp32", kittentts.CUDA, []string{"kitten-tts-nano-0.8-fp32"}},
+		// The CUDA images default to mini's GPU conversion, and without a usable
+		// GPU they exit instead of starting.
+		{"config.cuda.yaml", "kitten-tts-mini-0.8-fp32", kittentts.CUDA, []string{"kitten-tts-mini-0.8-fp32"}},
 	} {
 		t.Run(tc.file, func(t *testing.T) {
 			b, err := os.ReadFile("../../docker/" + tc.file)

@@ -13,9 +13,21 @@ Pinned versions: `github.com/yalue/onnxruntime_go` v1.36.0 with ONNX Runtime 1.2
 | `kitten-tts-mini-0.8` | 78 MB | 2.82 s | 1.79 s | CPU image |
 | `kitten-tts-micro-0.8` | 41 MB | 1.77 s | 1.03 s | |
 | `kitten-tts-nano-0.8-int8` | 24 MB | 1.76 s | 0.91 s | |
-| `kitten-tts-nano-0.8-fp32` | 57 MB | 0.27 s | 0.06 s | CUDA images, Raspberry Pi 5 |
+| `kitten-tts-nano-0.8-fp32` | 57 MB | 0.27 s | 0.06 s | Raspberry Pi 5 |
+| `kitten-tts-mini-0.8-fp32` | 287 MB | — | see below | CUDA images |
+| `kitten-tts-mini-0.8-fp16` | 147 MB | — | see below | |
 
 Times are per sentence of about 5 s of audio. Any model not on disk is downloaded from Hugging Face on first use, pinned to a commit and checked against a SHA-256.
+
+**On a GPU, use `kitten-tts-mini-0.8-fp32` instead of `kitten-tts-mini-0.8`.** It's the same model, weights and voices as KittenML's mini. The published mini is int8, and ONNX Runtime keeps its quantized layers on the CPU even with CUDA, so it barely speeds up on a GPU. The two conversions, [androiddrew/kitten-tts-mini-0.8-fp32](https://huggingface.co/androiddrew/kitten-tts-mini-0.8-fp32) and [-fp16](https://huggingface.co/androiddrew/kitten-tts-mini-0.8-fp16), turn those layers back into float layers, so the whole model runs on the GPU. On the RTX 4090, measured with [`bench`](#bench):
+
+| Mini on the RTX 4090 | Real-time factor, p50 / p95 | Time to first audio, p50 / p95 |
+| --- | --- | --- |
+| `kitten-tts-mini-0.8` (int8) | 0.392 / 0.522 | 1.43 s / 2.61 s |
+| `kitten-tts-mini-0.8-fp32` | 0.051 / 0.108 | 0.22 s / 0.28 s |
+| `kitten-tts-mini-0.8-fp16` | 0.068 / 0.146 | 0.30 s / 0.40 s |
+
+fp32 is the fastest. fp16 is half the size, but its convolutions are slower in ONNX Runtime on this GPU. The conversion can't undo the int8 rounding of the weights, so they sound like the int8 model; a side-by-side quality check against it hasn't been run yet. They are not recommended on the CPU: fp32 measured roughly 3× faster than int8 there, but only in a run shared with other load, and fp16 there is unmeasured.
 
 ## CPU option
 
@@ -35,13 +47,15 @@ Without Docker, see [Plain Linux binary](#plain-linux-binary). For a Raspberry P
 The NVIDIA images need the NVIDIA Container Toolkit. CUDA 13 needs host driver 580 or newer.
 
 ```bash
-make image-cuda12        # or image-cuda13; both bake and default to nano-fp32
+make image-cuda12        # or image-cuda13; both bake and default to mini-fp32
 docker run --gpus all -p 8880:8880 gokittentts:cuda12
 ```
 
-The CUDA images are linux/amd64 only. They run every model with `device: cuda` ([`docker/config.cuda.yaml`](docker/config.cuda.yaml)), and load nano-fp32 before listening because it sets `preload: true`. Without a usable GPU, for example without `--gpus all`, the container exits with the CUDA error rather than falling back to the CPU. `BAKE_MODELS` and the models volume work as in the CPU image. Any model can set `preload: true` to load before `serve` listens.
+The images default to `kitten-tts-mini-0.8-fp32`, mini's [GPU conversion](#models). They bake it with mini-fp16 and nano-fp32, about 490 MB of models. `-e KITTEN_DEFAULT_MODEL=kitten-tts-nano-0.8-fp32` switches to the smallest, fastest model. `make image-cuda12 BAKE_MODELS=kitten-tts-mini-0.8-fp32` bakes only the default; the others then download on first use.
 
-For a plain binary, use the `gpu_cuda12` (or `gpu_cuda13`) ONNX Runtime archive (`make onnxruntime-gpu ORT_CUDA=12`), provide CUDA and cuDNN 9 on the loader path, and set `device: cuda` (and optionally `cuda_device_id`) for the model in `config.yaml`, or pass `say --device cuda`. If the CUDA provider can't be enabled, the model fails to load; it never falls back to the CPU. `make test-cuda` checks nano-fp32 on GPU 0. The GPU only speeds up nano-fp32 significantly. The int8 models keep their quantized ops on the CPU (see [docs/ORIGINAL_SPEC.md](docs/ORIGINAL_SPEC.md) section 11.4).
+The CUDA images are linux/amd64 only. They run every model with `device: cuda` ([`docker/config.cuda.yaml`](docker/config.cuda.yaml)), and load mini-fp32 before listening because it sets `preload: true`. Without a usable GPU, for example without `--gpus all`, the container exits with the CUDA error rather than falling back to the CPU. `BAKE_MODELS` and the models volume work as in the CPU image. Any model can set `preload: true` to load before `serve` listens.
+
+For a plain binary, use the `gpu_cuda12` (or `gpu_cuda13`) ONNX Runtime archive (`make onnxruntime-gpu ORT_CUDA=12`), provide CUDA and cuDNN 9 on the loader path, and set `device: cuda` (and optionally `cuda_device_id`) for the model in `config.yaml`, or pass `say --device cuda`. If the CUDA provider can't be enabled, the model fails to load; it never falls back to the CPU. `make test-cuda` checks nano-fp32 on GPU 0. The GPU speeds up nano-fp32 and the fp32 and fp16 conversions of mini significantly. The int8 models keep their quantized ops on the CPU (see [docs/ORIGINAL_SPEC.md](docs/ORIGINAL_SPEC.md) section 11.4), so for mini on a GPU, use `kitten-tts-mini-0.8-fp32`.
 
 ## Plain Linux binary
 
@@ -207,7 +221,7 @@ The loop keeps going after a miss, and each record says whether that model passe
 The Pi 5 target is nano-fp32. Benchmark the binary, built natively on the Pi with the `linux-aarch64` ONNX Runtime archive:
 
 ```bash
-RELEASE=v0.1.0; mkdir -p bench/$RELEASE
+RELEASE=v0.1.1; mkdir -p bench/$RELEASE
 bin/gokittentts bench --onnxruntime-lib third_party/onnxruntime-linux-aarch64-1.29.1/lib/libonnxruntime.so.1.29.1 \
   --model kitten-tts-nano-0.8-fp32 --runs 5 --out bench/$RELEASE/$(hostname)-nano-fp32-pi5.json
 ```
@@ -216,7 +230,7 @@ or the Pi image, which bakes nano-fp32 and makes it the default (see [Raspberry 
 
 ```bash
 make image-pi5
-RELEASE=v0.1.0; mkdir -p bench/$RELEASE
+RELEASE=v0.1.1; mkdir -p bench/$RELEASE
 docker run --rm --hostname "$(hostname)" gokittentts:pi5 \
   bench --config /etc/gokittentts/config.yaml --runs 5 --out - > bench/$RELEASE/$(hostname)-nano-fp32-pi5.json
 ```
@@ -237,13 +251,13 @@ A model the image didn't bake is downloaded before the run. Mount the models vol
 
 ### CUDA
 
-With the CUDA images, which run every model on the GPU and default to nano-fp32:
+With the CUDA images, which run every model on the GPU and default to mini-fp32:
 
 ```bash
 docker run --rm --hostname "$(hostname)" --gpus all gokittentts:cuda12 bench --config /etc/gokittentts/config.yaml \
-  --out - > bench-nano-fp32-cuda12.json
+  --out - > bench-mini-fp32-cuda12.json
 docker run --rm --hostname "$(hostname)" --gpus '"device=1"' gokittentts:cuda13 bench --config /etc/gokittentts/config.yaml \
-  --out - > bench-nano-fp32-cuda13.json
+  --out - > bench-mini-fp32-cuda13.json
 ```
 
 With a plain binary, use the GPU build of ONNX Runtime and have CUDA and cuDNN 9 on the loader path (see [GPU option](#gpu-option)):
@@ -254,7 +268,7 @@ bin/gokittentts bench --onnxruntime-lib third_party/onnxruntime-linux-x64-gpu_cu
   --model kitten-tts-nano-0.8-fp32 --device cuda --cuda-device-id 0
 ```
 
-If the CUDA provider can't be enabled, `bench` fails with the CUDA error instead of measuring the CPU. Only nano-fp32 gains much from the GPU, because the int8 models keep their quantized ops on the CPU.
+If the CUDA provider can't be enabled, `bench` fails with the CUDA error instead of measuring the CPU. Only nano-fp32 and the fp32 and fp16 conversions of mini gain much from the GPU, because the int8 models keep their quantized ops on the CPU.
 
 ### Your own config and targets
 
@@ -273,18 +287,32 @@ The last command shows how a model does with fewer cores, for example when it sh
 Every release records one run per supported target. The targets are nano-fp32 on a Pi 5, mini on x86_64 and the CUDA images' default. Keep the records together, named by release, host, model and device:
 
 ```bash
-mkdir -p bench/v0.1.0
-bin/gokittentts bench --onnxruntime-lib $ORT --runs 5 --out bench/v0.1.0/$(hostname)-mini-cpu.json
+mkdir -p bench/v0.1.1
+bin/gokittentts bench --onnxruntime-lib $ORT --runs 5 --out bench/v0.1.1/$(hostname)-mini-cpu.json
 ```
 
 Each record has the date, the gokittentts commit (`-dirty` for an uncommitted tree, or the image's `VCS_REF`), the host, OS and architecture, the ONNX Runtime version, the model, device and voice, the targets, the percentiles, `pass` and every sample. It also has `corpus_sha256`: two records are comparable only when it matches, so changing the corpus starts a new baseline. To compare releases:
 
 ```bash
 jq -r '[.revision[:12], .host, .model, .device, .rtf.p95, .first_audio_seconds.p95, .pass] | @tsv' bench/*/*.json
-jq '.samples | sort_by(-.first_audio_seconds) | .[:3]' bench/v0.1.0/$(hostname)-mini-cpu.json   # the slowest requests
+jq '.samples | sort_by(-.first_audio_seconds) | .[:3]' bench/v0.1.1/$(hostname)-mini-cpu.json   # the slowest requests
 ```
 
 `text_index` in a sample is the request's position in the corpus, not counting comments.
+
+### v0.1.1 results
+
+v0.1.1 makes these changes:
+
+- **Pinned models:** it pins mini's GPU conversions, `kitten-tts-mini-0.8-fp32` and `-fp16`, and every image offers them.
+- **CUDA images:** they bake and default to mini-fp32 instead of nano-fp32.
+
+The CPU and Pi 5 targets and their default models are unchanged from v0.1.0, so their records carry over.
+
+| Target | Model | Machine | RTF p50 / p95 | First audio p50 / p95 | Gate |
+| --- | --- | --- | --- | --- | --- |
+| CUDA 12 image | mini-fp32 | RTX 4090, `gokittentts:cuda12` | not run yet | not run yet | pending |
+| CUDA 13 image | mini-fp32 | RTX 4090, `gokittentts:cuda13` | not run yet | not run yet | pending |
 
 ### v0.1.0 results
 
