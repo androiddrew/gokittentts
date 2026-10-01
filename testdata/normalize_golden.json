@@ -1510,5 +1510,281 @@
  {
   "input": "The 1000000000000000000th try.",
   "output": "The th try."
+ },
+ {
+  "input": "$1.50 each.",
+  "output": "one dollars and fifty cents each."
+ },
+ {
+  "input": "It costs $1.",
+  "output": "It costs one dollar."
+ },
+ {
+  "input": "Only $0.",
+  "output": "Only zero dollars."
+ },
+ {
+  "input": "Pay $1,000, then leave.",
+  "output": "Pay one thousand dollars then leave."
+ },
+ {
+  "input": "A $5.5x code.",
+  "output": "A five dollars.fivex code."
+ },
+ {
+  "input": "He paid $1,000x for it.",
+  "output": "He paid one dollar,zerox for it."
+ },
+ {
+  "input": "It was $5 . Cheap.",
+  "output": "It was five dollars. Cheap."
+ },
+ {
+  "input": "We need $2 billion.",
+  "output": "We need two dollars billion."
+ },
+ {
+  "input": "It costs $3.5 Million.",
+  "output": "It costs three dollars and fifty cents Million."
+ },
+ {
+  "input": "Raise $10 thousand now.",
+  "output": "Raise ten dollars thousand now."
+ },
+ {
+  "input": "Earn $85K a year.",
+  "output": "Earn eighty-five thousand dollars a year."
+ },
+ {
+  "input": "Spend $2.5M today.",
+  "output": "Spend two point five million dollars today."
+ },
+ {
+  "input": "It is ¥1 only.",
+  "output": "It is one yen only."
+ },
+ {
+  "input": "The ₩5000 note.",
+  "output": "The five thousand wons note."
+ },
+ {
+  "input": "Costs $ 20 with a space.",
+  "output": "Costs twenty dollars with a space."
+ },
+ {
+  "input": "$5.999 rounds down.",
+  "output": "five dollars and ninety-nine cents rounds down."
+ },
+ {
+  "input": "It costs $12.05 now.",
+  "output": "It costs twelve dollars and five cents now."
+ },
+ {
+  "input": "Price: $1.01.",
+  "output": "Price: one dollars and one cent."
+ },
+ {
+  "input": "The fee is $1,250.50, paid.",
+  "output": "The fee is one thousand two hundred fifty dollars and fifty cents, paid."
+ },
+ {
+  "input": "€1,200.50 total.",
+  "output": "twelve hundred euros and fifty cents total."
+ },
+ {
+  "input": "A $, sign.",
+  "error": "ValueError: invalid literal for int() with base 10: ''"
+ },
+ {
+  "input": "A 3.50% rate.",
+  "output": "A three point five percent rate."
+ },
+ {
+  "input": "Up 3.0% today.",
+  "output": "Up three point zero percent today."
+ },
+ {
+  "input": "Down 0.00001% only.",
+  "error": "ValueError: invalid literal for int() with base 10: '1e-05'"
+ },
+ {
+  "input": "Rates of 5 % apply.",
+  "output": "Rates of five percent apply."
+ },
+ {
+  "input": "x-5% here.",
+  "output": "xnegative five percent here."
+ },
+ {
+  "input": "The 1,5% case.",
+  "output": "The fifteen percent case."
+ },
+ {
+  "input": "GPT-4.",
+  "error": "ValueError: invalid literal for int() with base 10: ''"
+ },
+ {
+  "input": "I love GPT-4. It is great.",
+  "error": "ValueError: invalid literal for int() with base 10: ''"
+ },
+ {
+  "input": "Use gpt-3.5. Then stop.",
+  "error": "ValueError: invalid literal for int() with base 10: ''"
+ },
+ {
+  "input": "See ISO-9001 now.",
+  "output": "See ISO nine thousand one now."
+ },
+ {
+  "input": "Model-3..5 is odd.",
+  "error": "ValueError: invalid literal for int() with base 10: ''"
+ },
+ {
+  "input": "Python-3.10 is out.",
+  "output": "Python three point ten is out."
+ },
+ {
+  "input": "IPv6 is here.",
+  "output": "IPv6 is here."
+ },
+ {
+  "input": "Release v1.2.3.4x now.",
+  "output": "Release v one point two point three.fourx now."
+ },
+ {
+  "input": "Check 1.2.3.4 too.",
+  "output": "Check one point two point three point four too."
+ },
+ {
+  "input": "xv1.2.3 is not a version.",
+  "output": "xv1.two point three is not a version."
+ },
+ {
+  "input": "v10.0.0 shipped.",
+  "output": "v ten point zero point zero shipped."
+ },
+ {
+  "input": "The A-1 sauce.",
+  "output": "The A one sauce."
+ },
+ {
+  "input": "1 km is short.",
+  "output": "one km is short."
+ },
+ {
+  "input": "It is 100km away.",
+  "output": "It is one hundredkm away."
+ },
+ {
+  "input": "It weighs 50kg.",
+  "output": "It weighs fiftykg."
+ },
+ {
+  "input": "Set 25°C please.",
+  "output": "Set twenty-five C please."
+ },
+ {
+  "input": "Set 25 °F please.",
+  "output": "Set twenty-five F please."
+ },
+ {
+  "input": "Use 5GB of space.",
+  "output": "Use fiveGB of space."
+ },
+ {
+  "input": "1.5 TB of disk.",
+  "output": "one point five TB of disk."
+ },
+ {
+  "input": "Plays at 44.1 kHz.",
+  "output": "Plays at forty-four point one kHz."
+ },
+ {
+  "input": "A 2.4GHz band.",
+  "output": "A two point fourGHz band."
+ },
+ {
+  "input": "Wait 5 ns now.",
+  "output": "Wait five ns now."
+ },
+ {
+  "input": "Wait 3 µs now.",
+  "output": "Wait three µs now."
+ },
+ {
+  "input": "Runs 5-10 km a day.",
+  "output": "Runs five to ten km a day."
+ },
+ {
+  "input": "Delay of 1 ms only.",
+  "output": "Delay of one ms only."
+ },
+ {
+  "input": "Speed 1 mph.",
+  "output": "Speed one mph."
+ },
+ {
+  "input": "A 300 mbps link.",
+  "output": "A three hundred mbps link."
+ },
+ {
+  "input": "Temp 25C° today.",
+  "output": "Temp twenty-fiveC today."
+ },
+ {
+  "input": "The 340M model.",
+  "output": "The three hundred fortyM model."
+ },
+ {
+  "input": "A 1.5K salary.",
+  "output": "A one point fiveK salary."
+ },
+ {
+  "input": "About 2T tokens.",
+  "output": "About twoT tokens."
+ },
+ {
+  "input": "A 4K screen.",
+  "output": "A fourK screen."
+ },
+ {
+  "input": "Buy 3 T-shirts.",
+  "output": "Buy three T-shirts."
+ },
+ {
+  "input": "Plan 9B is weird.",
+  "output": "Plan nineB is weird."
+ },
+ {
+  "input": "Use _ab-5 here.",
+  "output": "Use _ab-five here."
+ },
+ {
+  "input": "The A100M chip.",
+  "output": "The A1zeroM chip."
+ },
+ {
+  "input": "It costs $3 millions.",
+  "output": "It costs three dollars millions."
+ },
+ {
+  "input": "Up 12345678901234567.5% today.",
+  "error": "ValueError: invalid literal for int() with base 10: 'e'"
+ },
+ {
+  "input": "A 7Bx code.",
+  "output": "A sevenBx code."
+ },
+ {
+  "input": "A x5kg reading.",
+  "output": "A x5kg reading."
+ },
+ {
+  "input": "Get 5-10% off.",
+  "output": "Get fivenegative ten percent off."
+ },
+ {
+  "input": "Only 01 km left.",
+  "output": "Only one km left."
  }
 ]

@@ -422,3 +422,82 @@ At 3:00 . then
 Arabic time ٣:٣٠ here.
 The ſept 5, 2020 launch.
 The 1000000000000000000th try.
+
+// Money edge cases
+$1.50 each.
+It costs $1.
+Only $0.
+Pay $1,000, then leave.
+A $5.5x code.
+He paid $1,000x for it.
+It was $5 . Cheap.
+We need $2 billion.
+It costs $3.5 Million.
+Raise $10 thousand now.
+Earn $85K a year.
+Spend $2.5M today.
+It is ¥1 only.
+The ₩5000 note.
+Costs $ 20 with a space.
+$5.999 rounds down.
+It costs $12.05 now.
+Price: $1.01.
+The fee is $1,250.50, paid.
+€1,200.50 total.
+A $, sign.
+
+// Percent edge cases
+A 3.50% rate.
+Up 3.0% today.
+Down 0.00001% only.
+Rates of 5 % apply.
+x-5% here.
+The 1,5% case.
+
+// Version edge cases
+GPT-4.
+I love GPT-4. It is great.
+Use gpt-3.5. Then stop.
+See ISO-9001 now.
+Model-3..5 is odd.
+Python-3.10 is out.
+IPv6 is here.
+Release v1.2.3.4x now.
+Check 1.2.3.4 too.
+xv1.2.3 is not a version.
+v10.0.0 shipped.
+The A-1 sauce.
+
+// Unit edge cases
+1 km is short.
+It is 100km away.
+It weighs 50kg.
+Set 25°C please.
+Set 25 °F please.
+Use 5GB of space.
+1.5 TB of disk.
+Plays at 44.1 kHz.
+A 2.4GHz band.
+Wait 5 ns now.
+Wait 3 µs now.
+Runs 5-10 km a day.
+Delay of 1 ms only.
+Speed 1 mph.
+A 300 mbps link.
+Temp 25C° today.
+
+// Scale suffix edge cases
+The 340M model.
+A 1.5K salary.
+About 2T tokens.
+A 4K screen.
+Buy 3 T-shirts.
+Plan 9B is weird.
+Use _ab-5 here.
+The A100M chip.
+It costs $3 millions.
+Up 12345678901234567.5% today.
+A 7Bx code.
+A x5kg reading.
+Get 5-10% off.
+Only 01 km left.

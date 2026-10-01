@@ -45,10 +45,6 @@ var pending = []struct {
 	what string
 	re   *regexp.Regexp
 }{
-	{"money (issue 12)", regexp.MustCompile(`[$€£¥₹₩₿]`)},
-	{"percent (issue 12)", regexp.MustCompile(`%`)},
-	{"dotted version (issue 12)", regexp.MustCompile(`\d+(?:\.\d+){2,}`)},
-	{"model version (issue 12)", regexp.MustCompile(`[a-zA-Z][a-zA-Z0-9]*-\d|\d-\d+-\d`)},
 	{"URL (issue 13)", regexp.MustCompile(`https?://|www\.`)},
 	{"email (issue 13)", regexp.MustCompile(`@`)},
 	{"HTML (issue 13)", regexp.MustCompile(`<[^>]+>`)},
@@ -136,8 +132,14 @@ func readJSON(t *testing.T, path string, v any) {
 	}
 }
 
-func TestYearsAreReadAsYears(t *testing.T) {
-	if got, want := normalize.Text("2024 budget"), "twenty twenty-four budget"; got != want {
-		t.Errorf("Text(%q) = %q, want %q", "2024 budget", got, want)
+func TestExamples(t *testing.T) {
+	for in, want := range map[string]string{
+		"2024 budget":  "twenty twenty-four budget",
+		"$3.5 million": "three point five million dollars",
+		"3 GB":         "three gigabytes",
+	} {
+		if got := normalize.Text(in); got != want {
+			t.Errorf("Text(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

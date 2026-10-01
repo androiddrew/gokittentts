@@ -189,3 +189,278 @@
   expected: "The one zero zero zero zero zero zero zero zero zero zero zero zero zero zero zero zero zero zeroth try."
   reason: "Python drops the digits above the trillions, so long numbers are misread or deleted. A number over 15 digits is read digit by digit."
   approved: false
+- input: "We raised $3.5 million."
+  python: "We raised three dollars and fifty cents million."
+  expected: "We raised three point five million dollars."
+  reason: "Python reads an amount followed by a scale word as \"three dollars and fifty cents million\". The scale word goes before the unit: \"three point five million dollars\"."
+  approved: false
+- input: "The budget was $3.5 million."
+  python: "The budget was three dollars and fifty cents million."
+  expected: "The budget was three point five million dollars."
+  reason: "Python reads an amount followed by a scale word as \"three dollars and fifty cents million\". The scale word goes before the unit: \"three point five million dollars\"."
+  approved: false
+- input: "A coffee is ¥500."
+  python: "A coffee is five hundred yens."
+  expected: "A coffee is five hundred yen."
+  reason: "Python adds an \"s\" to yen and won. They are invariant."
+  approved: false
+- input: "3 GB"
+  python: "three GB"
+  expected: "three gigabytes"
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "It has 16 GB of memory."
+  python: "It has sixteen GB of memory."
+  expected: "It has sixteen gigabytes of memory."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "The file is 500 MB."
+  python: "The file is five hundred MB."
+  expected: "The file is five hundred megabytes."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "Drive 60 mph."
+  python: "Drive sixty mph."
+  expected: "Drive sixty miles per hour."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "It is 25 °C outside."
+  python: "It is twenty-five C outside."
+  expected: "It is twenty-five degrees Celsius outside."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "The CPU runs at 3.5 GHz."
+  python: "The CPU runs at three point five GHz."
+  expected: "The CPU runs at three point five gigahertz."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "Latency was 20 ms."
+  python: "Latency was twenty Ms"
+  expected: "Latency was twenty milliseconds."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "The bag weighs 5 kg."
+  python: "The bag weighs five kg."
+  expected: "The bag weighs five kilograms."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "It is 10 km away."
+  python: "It is ten km away."
+  expected: "It is ten kilometers away."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "Take 200 mg twice a day."
+  python: "Take two hundred mg twice a day."
+  expected: "Take two hundred milligrams twice a day."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "Add 250 ml of water."
+  python: "Add two hundred fifty ml of water."
+  expected: "Add two hundred fifty milliliters of water."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "The model has 7B parameters."
+  python: "The model has sevenB parameters."
+  expected: "The model has seven billion parameters."
+  reason: "Python leaves a scale letter after a number as written (\"sevenB\"). It is read as the scale word, ported from TextPreprocessor's expand_scale_suffixes."
+  approved: false
+- input: "We served 10K users."
+  python: "We served tenK users."
+  expected: "We served ten thousand users."
+  reason: "Python leaves a scale letter after a number as written (\"sevenB\"). It is read as the scale word, ported from TextPreprocessor's expand_scale_suffixes."
+  approved: false
+- input: "Non-breaking 5 kg."
+  python: "Non-breaking five kg."
+  expected: "Non-breaking five kilograms."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "In 2023, revenue grew 15% to $4.2 billion, up from $3.6 billion in 2022."
+  python: "In twenty twenty-three revenue grew fifteen percent to four dollars and twenty cents billion, up from three dollars and sixty cents billion in twenty twenty-two."
+  expected: "In twenty twenty-three, revenue grew fifteen percent to four point two billion dollars, up from three point six billion dollars in twenty twenty-two."
+  reason: "Python reads an amount followed by a scale word as \"three dollars and fifty cents million\". The scale word goes before the unit: \"three point five million dollars\". Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
+  approved: false
+- input: "$1.50 each."
+  python: "one dollars and fifty cents each."
+  expected: "one dollar and fifty cents each."
+  reason: "Python says \"one dollars\" when there are cents. One whole unit is singular."
+  approved: false
+- input: "Pay $1,000, then leave."
+  python: "Pay one thousand dollars then leave."
+  expected: "Pay one thousand dollars, then leave."
+  reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
+  approved: false
+- input: "We need $2 billion."
+  python: "We need two dollars billion."
+  expected: "We need two billion dollars."
+  reason: "Python reads an amount followed by a scale word as \"three dollars and fifty cents million\". The scale word goes before the unit: \"three point five million dollars\"."
+  approved: false
+- input: "It costs $3.5 Million."
+  python: "It costs three dollars and fifty cents Million."
+  expected: "It costs three point five million dollars."
+  reason: "Python reads an amount followed by a scale word as \"three dollars and fifty cents million\". The scale word goes before the unit: \"three point five million dollars\"."
+  approved: false
+- input: "Raise $10 thousand now."
+  python: "Raise ten dollars thousand now."
+  expected: "Raise ten thousand dollars now."
+  reason: "Python reads an amount followed by a scale word as \"three dollars and fifty cents million\". The scale word goes before the unit: \"three point five million dollars\"."
+  approved: false
+- input: "The ₩5000 note."
+  python: "The five thousand wons note."
+  expected: "The five thousand won note."
+  reason: "Python adds an \"s\" to yen and won. They are invariant."
+  approved: false
+- input: "Price: $1.01."
+  python: "Price: one dollars and one cent."
+  expected: "Price: one dollar and one cent."
+  reason: "Python says \"one dollars\" when there are cents. One whole unit is singular."
+  approved: false
+- input: "A $, sign."
+  python: "ValueError: invalid literal for int() with base 10: ''"
+  expected: "A , sign."
+  reason: "Python raises ValueError on a currency symbol with only commas after it. It is left alone."
+  approved: false
+- input: "Down 0.00001% only."
+  python: "ValueError: invalid literal for int() with base 10: '1e-05'"
+  expected: "Down zero point zero zero zero zero one percent only."
+  reason: "Python reads a percent through float(), and raises ValueError when the float prints in exponent form. The decimal is read as written."
+  approved: false
+- input: "GPT-4."
+  python: "ValueError: invalid literal for int() with base 10: ''"
+  expected: "GPT four."
+  reason: "Python raises ValueError on a model version ending in or doubling a dot (\"GPT-4.\" at the end of a sentence). The digits-and-dots version is read and the rest stays."
+  approved: false
+- input: "I love GPT-4. It is great."
+  python: "ValueError: invalid literal for int() with base 10: ''"
+  expected: "I love GPT four. It is great."
+  reason: "Python raises ValueError on a model version ending in or doubling a dot (\"GPT-4.\" at the end of a sentence). The digits-and-dots version is read and the rest stays."
+  approved: false
+- input: "Use gpt-3.5. Then stop."
+  python: "ValueError: invalid literal for int() with base 10: ''"
+  expected: "Use gpt three point five. Then stop."
+  reason: "Python raises ValueError on a model version ending in or doubling a dot (\"GPT-4.\" at the end of a sentence). The digits-and-dots version is read and the rest stays."
+  approved: false
+- input: "Model-3..5 is odd."
+  python: "ValueError: invalid literal for int() with base 10: ''"
+  expected: "Model three..five is odd."
+  reason: "Python raises ValueError on a model version ending in or doubling a dot (\"GPT-4.\" at the end of a sentence). The digits-and-dots version is read and the rest stays."
+  approved: false
+- input: "1 km is short."
+  python: "one km is short."
+  expected: "one kilometer is short."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "It is 100km away."
+  python: "It is one hundredkm away."
+  expected: "It is one hundred kilometers away."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "It weighs 50kg."
+  python: "It weighs fiftykg."
+  expected: "It weighs fifty kilograms."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "Set 25°C please."
+  python: "Set twenty-five C please."
+  expected: "Set twenty-five degrees Celsius please."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "Set 25 °F please."
+  python: "Set twenty-five F please."
+  expected: "Set twenty-five degrees Fahrenheit please."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "Use 5GB of space."
+  python: "Use fiveGB of space."
+  expected: "Use five gigabytes of space."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "1.5 TB of disk."
+  python: "one point five TB of disk."
+  expected: "one point five terabytes of disk."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "Plays at 44.1 kHz."
+  python: "Plays at forty-four point one kHz."
+  expected: "Plays at forty-four point one kilohertz."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "A 2.4GHz band."
+  python: "A two point fourGHz band."
+  expected: "A two point four gigahertz band."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "Wait 5 ns now."
+  python: "Wait five ns now."
+  expected: "Wait five nanoseconds now."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "Wait 3 µs now."
+  python: "Wait three µs now."
+  expected: "Wait three microseconds now."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "Runs 5-10 km a day."
+  python: "Runs five to ten km a day."
+  expected: "Runs five to ten kilometers a day."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "Delay of 1 ms only."
+  python: "Delay of one ms only."
+  expected: "Delay of one millisecond only."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "Speed 1 mph."
+  python: "Speed one mph."
+  expected: "Speed one mile per hour."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "Temp 25C° today."
+  python: "Temp twenty-fiveC today."
+  expected: "Temp twenty-five degrees Celsius today."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false
+- input: "The 340M model."
+  python: "The three hundred fortyM model."
+  expected: "The three hundred forty million model."
+  reason: "Python leaves a scale letter after a number as written (\"sevenB\"). It is read as the scale word, ported from TextPreprocessor's expand_scale_suffixes."
+  approved: false
+- input: "A 1.5K salary."
+  python: "A one point fiveK salary."
+  expected: "A one point five thousand salary."
+  reason: "Python leaves a scale letter after a number as written (\"sevenB\"). It is read as the scale word, ported from TextPreprocessor's expand_scale_suffixes."
+  approved: false
+- input: "About 2T tokens."
+  python: "About twoT tokens."
+  expected: "About two trillion tokens."
+  reason: "Python leaves a scale letter after a number as written (\"sevenB\"). It is read as the scale word, ported from TextPreprocessor's expand_scale_suffixes."
+  approved: false
+- input: "A 4K screen."
+  python: "A fourK screen."
+  expected: "A four thousand screen."
+  reason: "Python leaves a scale letter after a number as written (\"sevenB\"). It is read as the scale word, ported from TextPreprocessor's expand_scale_suffixes."
+  approved: false
+- input: "Plan 9B is weird."
+  python: "Plan nineB is weird."
+  expected: "Plan nine billion is weird."
+  reason: "Python leaves a scale letter after a number as written (\"sevenB\"). It is read as the scale word, ported from TextPreprocessor's expand_scale_suffixes."
+  approved: false
+- input: "Up 12345678901234567.5% today."
+  python: "ValueError: invalid literal for int() with base 10: 'e'"
+  expected: "Up one two three four five six seven eight nine zero one two three four five six seven point five percent today."
+  reason: "Python reads a percent through float(), and raises ValueError when the float prints in exponent form. The decimal is read as written."
+  approved: false
+- input: "x-5% here."
+  python: "xnegative five percent here."
+  expected: "x-five percent here."
+  reason: "Python's percent pattern takes a minus after a word character as a sign (\"5-10%\" is \"fivenegative ten percent\"). It stays a hyphen."
+  approved: false
+- input: "Get 5-10% off."
+  python: "Get fivenegative ten percent off."
+  expected: "Get five-ten percent off."
+  reason: "Python's percent pattern takes a minus after a word character as a sign (\"5-10%\" is \"fivenegative ten percent\"). It stays a hyphen."
+  approved: false
+- input: "Only 01 km left."
+  python: "Only one km left."
+  expected: "Only one kilometer left."
+  reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
+  approved: false

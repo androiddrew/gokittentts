@@ -1,11 +1,13 @@
 // Package normalize rewrites text the way it should be read aloud: numbers,
-// years, ordinals, dates and times become words. It is a port of KittenTTS
+// years, ordinals, dates, times, money, percents, units and versions become
+// words. It is a port of KittenTTS
 // preprocess.py's normalize_text (read-aloud mode, scripts/preprocess_ref.py),
 // without its span tracking, plus the deviations recorded in
 // testdata/normalize_overrides.yaml.
 //
-// The substitutions run in Python's order. Not ported yet: HTML, URLs and
-// emails, money, percents, et al., titles, dotted versions and model versions.
+// The substitutions run in Python's order. Units and scale suffixes ("3 GB",
+// "7B"), which normalize_text lacks, come from TextPreprocessor and run after
+// percents. Not ported yet: HTML, URLs and emails, et al. and titles.
 //
 // Python's regexes are Unicode-aware and some use lookarounds, which RE2
 // lacks. Here \w is [\p{L}\p{N}_], \d is \p{Nd} and \s is Python's
@@ -57,10 +59,18 @@ func Text(s string) string {
 		return monthName(m[1]) + " " + yearWords(atoi(digits(m[2])))
 	})
 	s = times(s)
+	s = currency(s)
+	s = percent(s)
+	s = sub(s, reUnit, wordBefore, wordAfter, unitWords)
+	s = sub(s, reScaleSuffix, wordBefore, wordAfter, func(m []string) string {
+		return m[1] + " " + scaleWords[m[2]]
+	})
 	s = sub(s, reOrdinal, wordBefore, wordAfter, func(m []string) string {
 		return ordinalWords(digits(m[1]))
 	})
+	s = scan(s, reDottedVersion, dottedVersion)
 	s = sub(s, reRange, wordBefore, wordAfter, rangeWords)
+	s = sub(s, reModelVersion, wordBefore, nil, modelVersion)
 	s = sub(s, reNumber, asciiLetterBefore, nil, numberWords)
 	s = rePunctuation.ReplaceAllString(s, " ")
 	s = reSpaces.ReplaceAllString(s, " ")
@@ -124,27 +134,12 @@ func numberWords(m []string) string {
 // Deviation: when there is no suffix, Python still takes the spaces after
 // the time, so "3:00 today" becomes "threetoday". The spaces are kept.
 func times(s string) string {
-	var b strings.Builder
-	last, pos := 0, 0
-	for pos < len(s) {
-		loc := reClock.FindStringSubmatchIndex(s[pos:])
-		if loc == nil {
-			break
+	return scan(s, reClock, func(s string, loc []int) (int, string, bool) {
+		if !wordBefore(s, loc) {
+			return 0, "", false
 		}
-		for i := range loc {
-			loc[i] += pos
-		}
-		end, words, ok := timeTail(s, loc)
-		if !ok || !wordBefore(s, loc) {
-			pos = loc[0] + runeLen(s, loc[0])
-			continue
-		}
-		b.WriteString(s[last:loc[0]])
-		b.WriteString(words)
-		last, pos = end, end
-	}
-	b.WriteString(s[last:])
-	return b.String()
+		return timeTail(s, loc)
+	})
 }
 
 // timeTail finishes a time whose hours and minutes are at loc, returning the
@@ -222,9 +217,26 @@ func timeWords(hour, mins int, seconds, suffix, spaces string) string {
 }
 
 // sub replaces each match of re that before and after accept (either may be
-// nil) with repl of its submatches. Like Python's finditer after a failed
-// lookaround, a rejected match is retried one character on.
+// nil) with repl of its submatches.
 func sub(s string, re *regexp.Regexp, before, after func(s string, loc []int) bool, repl func(m []string) string) string {
+	return scan(s, re, func(s string, loc []int) (int, string, bool) {
+		if (before != nil && !before(s, loc)) || (after != nil && !after(s, loc)) {
+			return 0, "", false
+		}
+		m := make([]string, len(loc)/2)
+		for i := range m {
+			if loc[2*i] >= 0 {
+				m[i] = s[loc[2*i]:loc[2*i+1]]
+			}
+		}
+		return loc[1], repl(m), true
+	})
+}
+
+// scan finds each match of re and lets try decide where the match really
+// ends and what replaces it. Like Python's finditer after a failed
+// lookaround, a rejected match is retried one character on.
+func scan(s string, re *regexp.Regexp, try func(s string, loc []int) (end int, repl string, ok bool)) string {
 	var b strings.Builder
 	last, pos := 0, 0
 	for pos < len(s) {
@@ -237,19 +249,14 @@ func sub(s string, re *regexp.Regexp, before, after func(s string, loc []int) bo
 				loc[i] += pos
 			}
 		}
-		if (before != nil && !before(s, loc)) || (after != nil && !after(s, loc)) {
+		end, repl, ok := try(s, loc)
+		if !ok {
 			pos = loc[0] + runeLen(s, loc[0])
 			continue
 		}
-		m := make([]string, len(loc)/2)
-		for i := range m {
-			if loc[2*i] >= 0 {
-				m[i] = s[loc[2*i]:loc[2*i+1]]
-			}
-		}
 		b.WriteString(s[last:loc[0]])
-		b.WriteString(repl(m))
-		last, pos = loc[1], loc[1]
+		b.WriteString(repl)
+		last, pos = end, end
 	}
 	b.WriteString(s[last:])
 	return b.String()
