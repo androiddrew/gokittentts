@@ -198,6 +198,10 @@ func (m *Model) Stream(ctx context.Context, r Request) iter.Seq2[Chunk, error] {
 		if speed == 0 {
 			speed = 1
 		}
+		// Python looks the prior up by key, after resolving the alias.
+		if prior, ok := m.speedPriors[key]; ok {
+			speed *= prior
+		}
 		for _, text := range chunk.Split(r.Text) {
 			if err := ctx.Err(); err != nil {
 				yield(Chunk{}, err)
@@ -219,8 +223,8 @@ func (m *Model) Stream(ctx context.Context, r Request) iter.Seq2[Chunk, error] {
 	}
 }
 
-// run synthesizes one chunk, untrimmed, returning the waveform and the
-// per-token durations.
+// run synthesizes one chunk, untrimmed, at exactly speed, returning the
+// waveform and the per-token durations.
 func (m *Model) run(text, voiceKey string, speed float32) ([]float32, []int64, error) {
 	phonemes, err := m.phonemizer.Phonemize(text)
 	if err != nil {
@@ -231,9 +235,6 @@ func (m *Model) run(text, voiceKey string, speed float32) ([]float32, []int64, e
 	// The style row is the chunk's character count (not its phonemes'), capped.
 	row := min(utf8.RuneCountInString(text), npz.Rows-1)
 	style := m.voices[voiceKey][row*npz.Cols : (row+1)*npz.Cols]
-	if prior, ok := m.speedPriors[voiceKey]; ok {
-		speed *= prior
-	}
 
 	idsT, err := ort.NewTensor(ort.NewShape(1, int64(len(ids))), ids)
 	if err != nil {

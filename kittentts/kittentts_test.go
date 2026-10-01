@@ -3,13 +3,17 @@
 package kittentts_test
 
 import (
+	"archive/zip"
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/androiddrew/gokittentts/kittentts"
@@ -22,7 +26,16 @@ var (
 	models []string // every model in KITTEN_MODELS_DIR
 )
 
-const badContract = "bad-contract"
+// Extra models the tests configure: one with a broken contract, one built
+// from a real model with its own config.json and voices file, one that
+// nothing loads before TestModelsLoadOnFirstUseAndOnce, and one whose
+// directory doesn't exist.
+const (
+	badContract = "bad-contract"
+	ownVoices   = "own-voices"
+	lazy        = "lazy"
+	missing     = "missing"
+)
 
 func TestMain(m *testing.M) {
 	// Child mode for TestNewEngineRejectsOtherORTVersions.
@@ -53,6 +66,22 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, "no models in", dir)
 		os.Exit(1)
 	}
+	tmp, err := os.MkdirTemp("", "kittentts-test")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	first := filepath.Join(dir, models[0])
+	own := filepath.Join(tmp, ownVoices)
+	if err := makeOwnVoicesModel(own, first); err != nil {
+		fmt.Fprintln(os.Stderr, "making the own-voices model:", err)
+		os.Exit(1)
+	}
+	configs = append(configs,
+		kittentts.ModelConfig{Name: ownVoices, Dir: own},
+		kittentts.ModelConfig{Name: lazy, Dir: first},
+		kittentts.ModelConfig{Name: missing, Dir: filepath.Join(tmp, missing)},
+	)
 	engine, err = kittentts.NewEngine(lib, configs)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -63,7 +92,61 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, "close:", err)
 		code = 1
 	}
+	os.RemoveAll(tmp)
 	os.Exit(code)
+}
+
+// makeOwnVoicesModel makes a model in dir from the one in src: the same
+// .onnx file, but a config.json naming solo.npz, which holds only
+// expr-voice-2-f, under the name Solo.
+func makeOwnVoicesModel(dir, src string) error {
+	b, err := os.ReadFile(filepath.Join(src, "config.json"))
+	if err != nil {
+		return err
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(b, &cfg); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	onnx, _ := cfg["model_file"].(string)
+	if err := os.Symlink(filepath.Join(src, onnx), filepath.Join(dir, onnx)); err != nil {
+		return err
+	}
+	srcVoices, _ := cfg["voices"].(string)
+	cfg["voices"] = "solo.npz"
+	cfg["voice_aliases"] = map[string]string{"Solo": "expr-voice-2-f"}
+	cfg["speed_priors"] = map[string]float32{}
+	if b, err = json.Marshal(cfg); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.json"), b, 0o644); err != nil {
+		return err
+	}
+
+	r, err := zip.OpenReader(filepath.Join(src, srcVoices))
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	f, err := os.Create(filepath.Join(dir, "solo.npz"))
+	if err != nil {
+		return err
+	}
+	w := zip.NewWriter(f)
+	for _, entry := range r.File {
+		if entry.Name == "expr-voice-2-f.npy" {
+			if err := w.Copy(entry); err != nil {
+				return err
+			}
+		}
+	}
+	if err := w.Close(); err != nil {
+		return err
+	}
+	return f.Close()
 }
 
 func TestNewEngineRejectsOtherORTVersions(t *testing.T) {
@@ -125,7 +208,7 @@ func TestVoicesTableMatchesModels(t *testing.T) {
 
 func TestWaveformLengthMatchesDurations(t *testing.T) {
 	for _, name := range models {
-		wave, durations, err := kittentts.RunChunk(mustModel(t, name), "Hello from Go.", "Bruno")
+		wave, durations, err := kittentts.RunChunk(mustModel(t, name), "Hello from Go.", "Bruno", 1)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
@@ -187,7 +270,7 @@ func TestStreamYieldsOneTrimmedChunkAtATime(t *testing.T) {
 	// streamed chunk is exactly an untrimmed run less 5,000 samples, and it
 	// reports the run's token count and summed durations.
 	for i, text := range []string{"First sentence.", "Second sentence!", "Third one?"} {
-		wave, durations, err := kittentts.RunChunk(m, text, "Leo")
+		wave, durations, err := kittentts.RunChunk(m, text, "Leo", speedPrior(models[0], "Leo"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -225,6 +308,120 @@ func TestStreamStopsWhenContextIsCanceled(t *testing.T) {
 	}
 	if audio != 1 || errs != 1 {
 		t.Fatalf("got %d audio chunks and %d errors, want 1 and 1", audio, errs)
+	}
+}
+
+// speedPrior is the prior each model's config.json sets for a voice.
+func speedPrior(model, voice string) float32 {
+	if !strings.HasPrefix(model, "kitten-tts-nano-") {
+		return 1
+	}
+	if voice == "Hugo" {
+		return 0.9
+	}
+	return 0.8
+}
+
+func TestSpeedPriors(t *testing.T) {
+	const text = "The quick brown fox jumps over the lazy dog."
+	for _, c := range []struct {
+		model, voice string
+		prior        float32
+	}{
+		{"kitten-tts-nano-0.8-fp32", "Bella", 0.8},
+		{"kitten-tts-nano-0.8-fp32", "Hugo", 0.9},
+		{"kitten-tts-nano-0.8-int8", "Bella", 0.8},
+		{"kitten-tts-nano-0.8-int8", "Hugo", 0.9},
+		{"kitten-tts-mini-0.8", "Bella", 1},
+		{"kitten-tts-micro-0.8", "Hugo", 1},
+	} {
+		t.Run(c.model+"/"+c.voice, func(t *testing.T) {
+			if !slices.Contains(models, c.model) {
+				t.Fatalf("%s is not in KITTEN_MODELS_DIR; make test-native fetches all four models", c.model)
+			}
+			m := mustModel(t, c.model)
+			// Durations are deterministic, so a stream at speed 1 has the
+			// frames of a raw run at the prior, and only those.
+			frames := func(speed float32) int {
+				_, durations, err := kittentts.RunChunk(m, text, c.voice, speed)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var n int
+				for _, d := range durations {
+					n += int(d)
+				}
+				return n
+			}
+			var streamed int
+			for chunk, err := range m.Stream(context.Background(), kittentts.Request{Text: text, Voice: c.voice, Speed: 1}) {
+				if err != nil {
+					t.Fatal(err)
+				}
+				streamed += chunk.Frames
+			}
+			if want := frames(c.prior); streamed != want {
+				t.Errorf("speed 1 streamed %d frames, want %d (a raw run at %v)", streamed, want, c.prior)
+			}
+			if c.prior != 1 && frames(1) == frames(c.prior) {
+				t.Errorf("raw runs at 1 and %v have the same frames, so this test can't see the prior", c.prior)
+			}
+		})
+	}
+}
+
+func TestVoicesComeFromTheModelsOwnDirectory(t *testing.T) {
+	m := mustModel(t, ownVoices)
+	if got := m.Voices(); !slices.Equal(got, []string{"Solo"}) {
+		t.Fatalf("Voices() = %v, want [Solo] from the model's own config.json", got)
+	}
+	for _, voice := range []string{"Solo", "expr-voice-2-f"} {
+		if _, err := m.Synthesize(context.Background(), kittentts.Request{Text: "Hi.", Voice: voice, Speed: 1}); err != nil {
+			t.Errorf("%s: %v", voice, err)
+		}
+	}
+	for _, voice := range []string{"Bella", "expr-voice-3-m"} {
+		if _, err := m.Synthesize(context.Background(), kittentts.Request{Text: "Hi.", Voice: voice, Speed: 1}); err == nil {
+			t.Errorf("%s: want an error, since solo.npz doesn't have it", voice)
+		}
+	}
+}
+
+func TestModelsLoadOnFirstUseAndOnce(t *testing.T) {
+	// NewEngine accepted a model whose directory doesn't exist, so it
+	// loaded nothing up front.
+	if engine.Loaded(missing) {
+		t.Error("a model that can't load reports loaded")
+	}
+	if _, err := engine.Model(missing); err == nil {
+		t.Fatal("loading a missing model: want an error")
+	}
+	if engine.Loaded(missing) {
+		t.Error("a model that failed to load reports loaded")
+	}
+
+	if engine.Loaded(lazy) {
+		t.Fatal("a model nothing has used reports loaded")
+	}
+	got := make([]*kittentts.Model, 8)
+	var wg sync.WaitGroup
+	for i := range got {
+		wg.Go(func() {
+			m, err := engine.Model(lazy)
+			if err != nil {
+				t.Error(err)
+			}
+			got[i] = m
+		})
+	}
+	wg.Wait()
+	for i, m := range got {
+		if m == nil || m != got[0] {
+			t.Fatalf("concurrent first loads returned %v; want one model (index %d differs)", got, i)
+		}
+	}
+	if !engine.Loaded(lazy) {
+		t.Error("a loaded model reports not loaded")
 	}
 }
 

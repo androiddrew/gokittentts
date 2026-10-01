@@ -45,6 +45,8 @@ type fakeEngine struct {
 	finished chan struct{}
 
 	stall *stall
+
+	loaded map[string]bool // models the engine reports loaded; Stream loads its model
 }
 
 // stall holds a stream before chunk at until release is closed or, unless
@@ -72,6 +74,7 @@ type call struct {
 func (f *fakeEngine) Stream(ctx context.Context, model string, r kittentts.Request) iter.Seq2[kittentts.Chunk, error] {
 	f.mu.Lock()
 	f.calls = append(f.calls, call{model, r, ctx})
+	f.loadLocked(model)
 	chunks, err, st := f.chunks, f.err, f.stall
 	if chunks == nil && err == nil {
 		chunks = []kittentts.Chunk{{PCM: f.pcm}}
@@ -108,6 +111,26 @@ func (f *fakeEngine) Stream(ctx context.Context, model string, r kittentts.Reque
 			yield(kittentts.Chunk{}, err)
 		}
 	}
+}
+
+// markLoaded marks a model loaded, as if something had loaded it.
+func (f *fakeEngine) markLoaded(model string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.loadLocked(model)
+}
+
+func (f *fakeEngine) loadLocked(model string) {
+	if f.loaded == nil {
+		f.loaded = map[string]bool{}
+	}
+	f.loaded[model] = true
+}
+
+func (f *fakeEngine) Loaded(model string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.loaded[model]
 }
 
 func (f *fakeEngine) producedCount() int {
@@ -258,6 +281,75 @@ func TestModelResolution(t *testing.T) {
 		if got := eng.last(t).model; got != want {
 			t.Errorf("model %s reached the engine as %s, want %s", model, got, want)
 		}
+	}
+}
+
+// allModels configures the four KittenTTS 0.8 models.
+const allModels = `
+default_model: kitten-tts-mini-0.8
+models:
+  kitten-tts-mini-0.8: {}
+  kitten-tts-micro-0.8: {}
+  kitten-tts-nano-0.8-int8: {}
+  kitten-tts-nano-0.8-fp32: {}
+ffmpeg: ""
+`
+
+func TestEveryModelCanBeRequested(t *testing.T) {
+	h, eng := newServerWithConfig(t, allModels)
+	for _, model := range []string{"kitten-tts-mini-0.8", "kitten-tts-micro-0.8", "kitten-tts-nano-0.8-int8", "kitten-tts-nano-0.8-fp32"} {
+		rec := speech(t, h, `{"model":"`+model+`","input":"Hi.","voice":"Leo","response_format":"pcm"}`)
+		if rec.Code != http.StatusOK || rec.Body.Len() == 0 {
+			t.Fatalf("%s: status %d: %s", model, rec.Code, rec.Body)
+		}
+		if got := eng.last(t).model; got != model {
+			t.Errorf("model %s reached the engine as %s", model, got)
+		}
+	}
+}
+
+func TestModels(t *testing.T) {
+	h, _ := newServer(t)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/v1/models", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body)
+	}
+	var body struct {
+		Object string `json:"object"`
+		Data   []struct {
+			ID       string  `json:"id"`
+			Object   string  `json:"object"`
+			Created  *int64  `json:"created"`
+			OwnedBy  string  `json:"owned_by"`
+			AliasFor *string `json:"alias_for"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("%s: %v", rec.Body, err)
+	}
+	if body.Object != "list" {
+		t.Errorf("object %q, want list", body.Object)
+	}
+	got := map[string]string{} // id -> what it is an alias for, or "" for a model
+	for _, m := range body.Data {
+		if m.Object != "model" || m.Created == nil || m.OwnedBy == "" {
+			t.Errorf("model %+v is not in OpenAI's shape: %s", m, rec.Body)
+		}
+		got[m.ID] = ""
+		if m.AliasFor != nil {
+			got[m.ID] = *m.AliasFor
+		}
+	}
+	want := map[string]string{
+		"kitten-tts-mini-0.8":      "",
+		"kitten-tts-nano-0.8-fp32": "",
+		"tts-1":                    "kitten-tts-mini-0.8",
+		"gpt-4o-mini-tts":          "kitten-tts-mini-0.8",
+		"tts-1-hd":                 "kitten-tts-nano-0.8-fp32",
+	}
+	if !maps.Equal(got, want) || len(body.Data) != len(want) {
+		t.Errorf("models %v, want %v", got, want)
 	}
 }
 
@@ -952,6 +1044,8 @@ func TestAuth(t *testing.T) {
 		{"the scheme is case-insensitive", http.MethodPost, "/v1/audio/speech", "bearer s3cret", http.StatusOK},
 		{"voices without a key", http.MethodGet, "/v1/voices", "", http.StatusUnauthorized},
 		{"voices with the key", http.MethodGet, "/v1/voices", "Bearer s3cret", http.StatusOK},
+		{"models without a key", http.MethodGet, "/v1/models", "", http.StatusUnauthorized},
+		{"models with the key", http.MethodGet, "/v1/models", "Bearer s3cret", http.StatusOK},
 		{"unknown /v1 path without a key", http.MethodGet, "/v1/nothing", "", http.StatusUnauthorized},
 		{"healthz without a key", http.MethodGet, "/healthz", "", http.StatusOK},
 	} {

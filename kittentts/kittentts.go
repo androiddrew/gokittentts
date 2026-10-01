@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	ort "github.com/yalue/onnxruntime_go"
 
@@ -53,26 +54,33 @@ type Request struct {
 // most one open Engine.
 type Engine struct {
 	phonemizer phonemize.Phonemizer
+	slots      map[string]*slot // by model name, fixed by NewEngine
 
-	mu      sync.Mutex
-	configs map[string]ModelConfig
-	models  map[string]*Model
-	closed  bool
+	mu     sync.Mutex // guards closed
+	closed bool
+}
+
+// slot is a configured model, loaded on first use. Each slot loads on its
+// own, so loading one model doesn't hold up requests for others.
+type slot struct {
+	cfg   ModelConfig
+	mu    sync.Mutex // held while loading
+	model atomic.Pointer[Model]
 }
 
 // NewEngine loads ONNX Runtime from ortLibPath, which must be the versioned
 // library file (libonnxruntime.so.1.29.1, not the symlink), and fails if it
 // is not ONNX Runtime 1.29.1. Models load on first use.
 func NewEngine(ortLibPath string, models []ModelConfig) (*Engine, error) {
-	configs := make(map[string]ModelConfig, len(models))
+	slots := make(map[string]*slot, len(models))
 	for _, c := range models {
-		if _, dup := configs[c.Name]; dup {
+		if _, dup := slots[c.Name]; dup {
 			return nil, fmt.Errorf("kittentts: model %q configured twice", c.Name)
 		}
 		if c.Device != "" && c.Device != CPU {
 			return nil, fmt.Errorf("kittentts: model %q: device %q is not supported", c.Name, c.Device)
 		}
-		configs[c.Name] = c
+		slots[c.Name] = &slot{cfg: c}
 	}
 
 	backend, err := espeak.New()
@@ -94,47 +102,78 @@ func NewEngine(ortLibPath string, models []ModelConfig) (*Engine, error) {
 
 	return &Engine{
 		phonemizer: phonemize.PreservePunctuation(backend),
-		configs:    configs,
-		models:     map[string]*Model{},
+		slots:      slots,
 	}, nil
 }
 
+var errClosed = errors.New("kittentts: engine is closed")
+
 // Model returns the named model, loading it on first use. Loading checks the
-// model contract, reads the voices and creates the ONNX Runtime session.
+// model contract, reads the model's config.json and voices from its own
+// directory, and creates the ONNX Runtime session. Concurrent first calls
+// load the model once. A failed load is not remembered, so a later call
+// tries again.
 func (e *Engine) Model(name string) (*Model, error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if e.closed {
-		return nil, errors.New("kittentts: engine is closed")
-	}
-	if m, ok := e.models[name]; ok {
-		return m, nil
-	}
-	cfg, ok := e.configs[name]
+	sl, ok := e.slots[name]
 	if !ok {
 		return nil, fmt.Errorf("kittentts: unknown model %q", name)
 	}
-	m, err := loadModel(cfg, e.phonemizer)
+	if e.isClosed() {
+		return nil, errClosed
+	}
+	if m := sl.model.Load(); m != nil {
+		return m, nil
+	}
+	sl.mu.Lock()
+	defer sl.mu.Unlock()
+	if m := sl.model.Load(); m != nil {
+		return m, nil
+	}
+	// Close takes every slot's lock after closing, so a load that holds this
+	// lock either finishes before Close destroys anything or sees it closed.
+	if e.isClosed() {
+		return nil, errClosed
+	}
+	m, err := loadModel(sl.cfg, e.phonemizer)
 	if err != nil {
 		return nil, fmt.Errorf("kittentts: model %s: %w", name, err)
 	}
-	e.models[name] = m
+	sl.model.Store(m)
 	return m, nil
 }
 
-// Close destroys every loaded model's session and the ONNX Runtime
-// environment. Close must not be called while a synthesis is running, and
-// Models from this Engine must not be used after it.
-func (e *Engine) Close() error {
+// Loaded reports whether the named model has loaded. It doesn't wait for a
+// load in progress.
+func (e *Engine) Loaded(name string) bool {
+	sl, ok := e.slots[name]
+	return ok && sl.model.Load() != nil
+}
+
+func (e *Engine) isClosed() bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	return e.closed
+}
+
+// Close destroys every loaded model's session and the ONNX Runtime
+// environment, after waiting for any load in progress. Close must not be
+// called while a model is synthesizing, and Models from this Engine must not
+// be used after it.
+func (e *Engine) Close() error {
+	e.mu.Lock()
 	if e.closed {
+		e.mu.Unlock()
 		return nil
 	}
 	e.closed = true
+	e.mu.Unlock()
 	var errs []error
-	for _, m := range e.models {
-		errs = append(errs, m.session.Destroy())
+	for _, sl := range e.slots {
+		sl.mu.Lock()
+		if m := sl.model.Load(); m != nil {
+			errs = append(errs, m.session.Destroy())
+		}
+		sl.mu.Unlock()
 	}
 	errs = append(errs, ort.DestroyEnvironment())
 	return errors.Join(errs...)

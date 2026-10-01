@@ -26,12 +26,15 @@ import (
 	"github.com/androiddrew/gokittentts/kittentts"
 )
 
-// Engine streams a request's audio with the named model, one chunk at a time.
+// Engine streams a request's audio with the named model, one chunk at a
+// time, and reports which models it has loaded.
 type Engine interface {
 	Stream(ctx context.Context, model string, r kittentts.Request) iter.Seq2[kittentts.Chunk, error]
+	Loaded(model string) bool
 }
 
-// KittenEngine adapts *kittentts.Engine to Engine.
+// KittenEngine adapts *kittentts.Engine to Engine. Models load on their
+// first request.
 type KittenEngine struct{ *kittentts.Engine }
 
 // Stream loads the model if needed and streams r.
@@ -95,11 +98,12 @@ func New(cfg *config.Config, engine Engine) http.Handler {
 		}
 	}
 	if cfg.Metrics {
-		s.metrics = newMetrics(cfg, s.queues, s.supportedFormats())
+		s.metrics = newMetrics(cfg, engine, s.queues, s.supportedFormats())
 	}
 	api := http.NewServeMux()
 	api.HandleFunc("POST /v1/audio/speech", s.speech)
 	api.HandleFunc("GET /v1/voices", s.voices)
+	api.HandleFunc("GET /v1/models", s.models)
 	mux := http.NewServeMux()
 	mux.Handle("/v1/", s.requireKey(api))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -619,6 +623,32 @@ func (s *server) unknownVoiceMessage(raw json.RawMessage) string {
 	}
 	return fmt.Sprintf("%s; valid voices are %s, their expr-voice-* keys, or %s",
 		given, strings.Join(names, ", "), strings.Join(sortedKeys(s.cfg.Voices), ", "))
+}
+
+// modelInfo is an entry in OpenAI's model list, plus alias_for on aliases.
+type modelInfo struct {
+	ID       string `json:"id"`
+	Object   string `json:"object"`
+	Created  int64  `json:"created"`
+	OwnedBy  string `json:"owned_by"`
+	AliasFor string `json:"alias_for,omitempty"`
+}
+
+// models lists the configured models, then the aliases with the model each
+// resolves to.
+func (s *server) models(w http.ResponseWriter, _ *http.Request) {
+	list := make([]modelInfo, 0, len(s.cfg.Models)+len(s.cfg.ModelAliases))
+	for _, name := range sortedKeys(s.cfg.Models) {
+		list = append(list, modelInfo{ID: name, Object: "model", OwnedBy: "kittenml"})
+	}
+	for _, alias := range sortedKeys(s.cfg.ModelAliases) {
+		target, _ := s.resolveModel(alias)
+		list = append(list, modelInfo{ID: alias, Object: "model", OwnedBy: "kittenml", AliasFor: target})
+	}
+	writeJSON(w, http.StatusOK, struct {
+		Object string      `json:"object"`
+		Data   []modelInfo `json:"data"`
+	}{"list", list})
 }
 
 type voiceInfo struct {

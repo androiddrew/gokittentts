@@ -286,6 +286,21 @@ func TestMetricsCountRequests(t *testing.T) {
 	}
 }
 
+func TestModelLoadedComesFromTheEngine(t *testing.T) {
+	h, eng := newServer(t)
+	// A model the engine loaded without a request, and one whose request
+	// failed after the engine loaded it, both count.
+	eng.markLoaded(nano)
+	eng.err = errors.New("onnxruntime exploded")
+	speech(t, h, pcmRequest)
+	families := scrape(t, h)
+	for _, m := range []string{mini, nano} {
+		if v := sample(t, families, "kitten_model_loaded", map[string]string{"model": m, "device": "cpu"}); v != 1 {
+			t.Errorf("%s loaded = %v, want 1 (the engine has loaded it)", m, v)
+		}
+	}
+}
+
 func TestMetricsAreOpenWithAuth(t *testing.T) {
 	h, _ := newServerWithEnv(t, testConfig, map[string]string{"KITTEN_API_KEY": "s3cret"})
 	scrape(t, h)

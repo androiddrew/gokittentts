@@ -20,16 +20,14 @@ type metrics struct {
 	synthesis  *prometheus.HistogramVec // model
 	rtf        *prometheus.HistogramVec // model
 	firstAudio *prometheus.HistogramVec // model
-	loaded     *prometheus.GaugeVec     // model, device
 	downloads  *prometheus.CounterVec   // model, status; counted once the model store lands
-	devices    map[string]string        // by model name
 	handler    http.Handler
 }
 
 // newMetrics registers every metric, with a zero series for each configured
 // model and supported format so dashboards and alerts see them before the
 // first request.
-func newMetrics(cfg *config.Config, queues map[string]*queue, formats []string) *metrics {
+func newMetrics(cfg *config.Config, engine Engine, queues map[string]*queue, formats []string) *metrics {
 	reg := prometheus.NewRegistry()
 	f := promauto.With(reg)
 	histogram := func(name, help string, buckets []float64) *prometheus.HistogramVec {
@@ -49,15 +47,10 @@ func newMetrics(cfg *config.Config, queues map[string]*queue, formats []string) 
 		firstAudio: histogram("kitten_time_to_first_audio_seconds",
 			"Time from a successful request's arrival to its first audio, including queue wait.",
 			[]float64{.05, .1, .25, .5, .75, 1, 1.5, 2, 5, 10, 30}),
-		loaded: f.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "kitten_model_loaded",
-			Help: "1 once a model has synthesized, so it is loaded; 0 before.",
-		}, []string{"model", "device"}),
 		downloads: f.NewCounterVec(prometheus.CounterOpts{
 			Name: "kitten_model_downloads_total",
 			Help: "Model downloads by status.",
 		}, []string{"model", "status"}),
-		devices: make(map[string]string, len(cfg.Models)),
 	}
 	for name, model := range cfg.Models {
 		q := queues[name]
@@ -71,8 +64,16 @@ func newMetrics(cfg *config.Config, queues map[string]*queue, formats []string) 
 		if device == "" {
 			device = string(kittentts.CPU)
 		}
-		m.devices[name] = device
-		m.loaded.WithLabelValues(name, device)
+		f.NewGaugeFunc(prometheus.GaugeOpts{
+			Name:        "kitten_model_loaded",
+			Help:        "1 if the model is loaded; models load on their first request.",
+			ConstLabels: prometheus.Labels{"model": name, "device": device},
+		}, func() float64 {
+			if engine.Loaded(name) {
+				return 1
+			}
+			return 0
+		})
 		m.synthesis.WithLabelValues(name)
 		m.rtf.WithLabelValues(name)
 		m.firstAudio.WithLabelValues(name)
@@ -91,9 +92,6 @@ func newMetrics(cfg *config.Config, queues map[string]*queue, formats []string) 
 // observe counts a finished speech request.
 func (m *metrics) observe(rec *requestRecord) {
 	m.requests.WithLabelValues(rec.modelLabel, rec.formatLabel, strconv.Itoa(rec.status)).Inc()
-	if rec.chunks > 0 {
-		m.loaded.WithLabelValues(rec.model, m.devices[rec.model]).Set(1)
-	}
 	if rec.status != http.StatusOK {
 		return
 	}

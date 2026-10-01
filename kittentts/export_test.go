@@ -2,13 +2,14 @@
 
 package kittentts
 
-// RunChunk runs one chunk untrimmed, for tests of the model's own invariants.
-func RunChunk(m *Model, text, voice string) ([]float32, []int64, error) {
+// RunChunk runs one chunk untrimmed at exactly speed, with no speed prior,
+// for tests of the model's own invariants.
+func RunChunk(m *Model, text, voice string, speed float32) ([]float32, []int64, error) {
 	key, err := m.voiceKey(voice)
 	if err != nil {
 		return nil, nil, err
 	}
-	return m.run(text, key, 1)
+	return m.run(text, key, speed)
 }
 
 // VoiceKey resolves a Kitten name or voices.npz key the way Stream does.
