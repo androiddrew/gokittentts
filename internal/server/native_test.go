@@ -4,6 +4,7 @@ package server_test
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -19,8 +20,11 @@ import (
 
 // The native tests serve real models from KITTEN_MODELS_DIR, which `make
 // test-native` fills with `gokittentts pull`. ONNX Runtime's environment is
-// process-wide, so they share one handler.
-var native http.Handler
+// process-wide, so they share one engine and handler.
+var (
+	kitten server.KittenEngine
+	native http.Handler
+)
 
 // pinnedModels are the four models make test-native pulls, and unobtainable
 // is configured but on no disk and in no manifest.
@@ -53,7 +57,8 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	native = server.New(cfg, server.KittenEngine{Engine: engine, Store: store})
+	kitten = server.KittenEngine{Engine: engine, Store: store}
+	native = server.New(cfg, kitten)
 	code := m.Run()
 	engine.Close()
 	os.Exit(code)
@@ -82,5 +87,18 @@ func TestAModelThatCannotBeGotIs503(t *testing.T) {
 	e := openAIError(t, speech(t, native, `{"model":"`+unobtainable+`","input":"Hi.","voice":"Leo"}`), http.StatusServiceUnavailable)
 	if msg, _ := e["message"].(string); !strings.Contains(msg, "gokittentts pull "+unobtainable) {
 		t.Errorf("error %v, want the store's advice to pull the model", e)
+	}
+}
+
+func TestLoad(t *testing.T) {
+	model := "kitten-tts-micro-0.8"
+	if err := kitten.Load(t.Context(), model); err != nil {
+		t.Fatal(err)
+	}
+	if !kitten.Loaded(model) {
+		t.Errorf("%s not loaded after Load", model)
+	}
+	if err := kitten.Load(t.Context(), unobtainable); !errors.Is(err, server.ErrModelUnavailable) {
+		t.Errorf("Load(%s) = %v, want ErrModelUnavailable", unobtainable, err)
 	}
 }

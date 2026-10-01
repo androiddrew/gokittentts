@@ -99,17 +99,27 @@ func serve(args []string) error {
 	if err != nil {
 		return err
 	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	kitten := server.KittenEngine{Engine: engine, Store: store}
+	for _, name := range slices.Sorted(maps.Keys(cfg.Models)) {
+		if m := cfg.Models[name]; m.Preload {
+			if err := kitten.Load(ctx, name); err != nil {
+				engine.Close()
+				return fmt.Errorf("preloading %s: %w", name, err)
+			}
+			slog.Info("preloaded", "model", name, "device", m.Device)
+		}
+	}
 	ln, err := net.Listen("tcp", cfg.Listen)
 	if err != nil {
 		engine.Close()
 		return err
 	}
 	srv := &http.Server{
-		Handler:           server.New(cfg, server.KittenEngine{Engine: engine, Store: store}),
+		Handler:           server.New(cfg, kitten),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 	errc := make(chan error, 1)
 	go func() { errc <- srv.Serve(ln) }()
 	slog.Info("listening", "addr", ln.Addr().String(), "default_model", cfg.DefaultModel)

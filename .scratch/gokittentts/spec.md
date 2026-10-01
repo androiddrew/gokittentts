@@ -205,6 +205,7 @@ The phonemes and token ids match the Python reference token for token. Models ar
 - **Config.**
     - One YAML file, with `KITTEN_API_KEY`, `KITTEN_DEFAULT_MODEL` and `KITTEN_LISTEN` overrides.
     - Validated at startup: device, default model, voice map targets, speed range.
+    - A model may set `preload: true` to load before `serve` listens, and `serve` exits if it can't. This is the one exception to loading on first use. The CUDA images set it on nano-fp32, so they fail at once without a usable GPU.
 - **Server.**
     - Holds an engine behind an interface, so it can be tested with a fake.
     - Resolves models (name → alias) and voices (Kitten name → key → OpenAI map → 400).

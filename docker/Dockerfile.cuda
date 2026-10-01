@@ -1,0 +1,107 @@
+# syntax=docker/dockerfile:1
+#
+# The CUDA 12 and CUDA 13 images, for linux/amd64. Build them with
+# `make image-cuda12` or `make image-cuda13`.
+#
+#   CUDA         12 or 13: the base image and ONNX Runtime GPU build
+#   BAKE_MODELS  comma-separated models to bake in, pulled with the manifest's
+#                SHA-256 checks; empty gives a slim image that downloads on
+#                first use
+#   VCS_REF      the gokittentts commit the binary is built from
+
+ARG CUDA=12
+# Ubuntu 24.04's espeak-ng, the version the phoneme goldens were made with.
+ARG ESPEAK_NG_VERSION=1.51+dfsg-12build1
+ARG ORT_VERSION=1.29.1
+
+FROM nvidia/cuda:12.9.1-cudnn-runtime-ubuntu24.04 AS base-12
+FROM nvidia/cuda:13.0.3-cudnn-runtime-ubuntu24.04 AS base-13
+
+FROM golang:1.26-trixie AS src
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
+COPY . .
+
+# The cgo binary, built on the runtime's Ubuntu so it links the same glibc
+# and espeak-ng.
+FROM ubuntu:24.04 AS build
+ARG ESPEAK_NG_VERSION
+RUN set -eux; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends gcc libc6-dev "libespeak-ng-dev=$ESPEAK_NG_VERSION"; \
+	rm -rf /var/lib/apt/lists/*
+COPY --from=src /usr/local/go /usr/local/go
+COPY --from=src /src /src
+ENV PATH=/usr/local/go/bin:$PATH GOPATH=/go
+WORKDIR /src
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+	CGO_ENABLED=1 go build -tags espeak -trimpath -buildvcs=false -o /out/gokittentts ./cmd/gokittentts
+
+# The baked models, pulled with the manifest's checks.
+FROM src AS models
+ARG BAKE_MODELS=kitten-tts-nano-0.8-fp32
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+	go build -o /usr/local/bin/gokittentts ./cmd/gokittentts
+RUN set -eux; \
+	mkdir /models; \
+	if [ -n "$BAKE_MODELS" ]; then gokittentts pull "$BAKE_MODELS" --dir /models; fi
+
+FROM golang:1.26-trixie AS onnxruntime
+ARG CUDA
+ARG ORT_VERSION
+ARG ORT_SHA256_12=b404524d9e9f0b4f6f309cf5e5fa407ee9bfafd193e433ce6f2be05fddec7692
+ARG ORT_SHA256_13=0e948660440e1e53ce555f2be3d03fd097d006fd7d52255eda59280e059ad0df
+RUN set -eux; \
+	case "$CUDA" in \
+		12) sum="$ORT_SHA256_12" ;; \
+		13) sum="$ORT_SHA256_13" ;; \
+		*) echo "unsupported CUDA $CUDA, want 12 or 13" >&2; exit 1 ;; \
+	esac; \
+	curl -fsSL -o /ort.tgz "https://github.com/microsoft/onnxruntime/releases/download/v$ORT_VERSION/onnxruntime-linux-x64-gpu_cuda$CUDA-$ORT_VERSION.tgz"; \
+	echo "$sum  /ort.tgz" | sha256sum -c -; \
+	mkdir /onnxruntime; \
+	tar xzf /ort.tgz --no-same-owner --strip-components=1 -C /onnxruntime
+
+FROM base-${CUDA}
+ARG ESPEAK_NG_VERSION
+ARG ORT_VERSION
+ARG VCS_REF=unknown
+LABEL org.opencontainers.image.title="gokittentts" \
+	org.opencontainers.image.description="OpenAI-compatible text-to-speech with the KittenTTS 0.8 models, on NVIDIA GPUs" \
+	org.opencontainers.image.source="https://github.com/androiddrew/gokittentts" \
+	org.opencontainers.image.revision="$VCS_REF"
+RUN set -eux; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends \
+		"libespeak-ng1=$ESPEAK_NG_VERSION" \
+		"espeak-ng-data=$ESPEAK_NG_VERSION" \
+		ffmpeg \
+		ca-certificates; \
+	rm -rf /var/lib/apt/lists/*; \
+	useradd --uid 10001 --user-group --home-dir /var/lib/gokittentts --no-create-home --shell /usr/sbin/nologin gokittentts
+
+# Third-party licenses. Ubuntu's packages keep theirs in /usr/share/doc/<package>/copyright.
+ARG LICENSES=/usr/share/doc/gokittentts/LICENSES
+COPY docker/LICENSES/ $LICENSES/
+COPY --from=onnxruntime /onnxruntime/LICENSE /onnxruntime/ThirdPartyNotices.txt $LICENSES/onnxruntime/
+RUN ln -s /usr/share/doc/ffmpeg/copyright "$LICENSES/ffmpeg-copyright" \
+	&& ln -s /usr/share/doc/libespeak-ng1/copyright "$LICENSES/espeak-ng-copyright" \
+	&& ln -s /NGC-DL-CONTAINER-LICENSE "$LICENSES/NGC-DL-CONTAINER-LICENSE"
+
+# The CUDA provider is loaded from beside libonnxruntime.
+COPY --from=onnxruntime \
+	/onnxruntime/lib/libonnxruntime.so.$ORT_VERSION \
+	/onnxruntime/lib/libonnxruntime_providers_shared.so \
+	/onnxruntime/lib/libonnxruntime_providers_cuda.so \
+	/opt/onnxruntime/lib/
+COPY docker/config.cuda.yaml /etc/gokittentts/config.yaml
+COPY --from=build /out/gokittentts /usr/local/bin/gokittentts
+# A named volume mounted here starts as a copy of the baked models.
+COPY --from=models --chown=gokittentts:gokittentts /models /var/lib/gokittentts/models
+
+USER gokittentts
+EXPOSE 8880
+VOLUME /var/lib/gokittentts/models
+ENTRYPOINT ["gokittentts"]
+CMD ["serve"]

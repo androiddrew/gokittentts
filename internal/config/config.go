@@ -45,6 +45,9 @@ type Model struct {
 	CUDADeviceID   int              `yaml:"cuda_device_id"`
 	IntraOpThreads int              `yaml:"intra_op_threads"`
 	MaxQueue       *int             `yaml:"max_queue"` // requests that may wait behind the running one; nil means DefaultMaxQueue
+	// Preload loads the model before serve listens, and serve exits if it
+	// can't, instead of the model loading on first use.
+	Preload bool `yaml:"preload"`
 	// Repo and Revision download a model that isn't in the pinned manifest,
 	// from a Hugging Face repo, without hash checks.
 	Repo     string `yaml:"repo"`

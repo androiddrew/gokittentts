@@ -1,6 +1,6 @@
 # Third-party licenses
 
-The images copy this directory to `/usr/share/doc/gokittentts/LICENSES`, and add ONNX Runtime's `LICENSE` and `ThirdPartyNotices.txt` under `onnxruntime/`, plus links to the Debian copyright files of ffmpeg and espeak-ng. Every Debian package in an image keeps its copyright file at `/usr/share/doc/<package>/copyright`.
+The images copy this directory to `/usr/share/doc/gokittentts/LICENSES`, and add ONNX Runtime's `LICENSE` and `ThirdPartyNotices.txt` under `onnxruntime/`, plus links to the distribution's copyright files of ffmpeg and espeak-ng. The CUDA images also link NVIDIA's container license. Every Debian or Ubuntu package in an image keeps its copyright file at `/usr/share/doc/<package>/copyright`.
 
 ## shine-mp3
 
@@ -25,6 +25,12 @@ The images copy this directory to `/usr/share/doc/gokittentts/LICENSES`, and add
 - **What:** Microsoft's prebuilt `libonnxruntime.so` from the GitHub release, loaded at run time.
 - **License:** MIT ([`LICENSE`](https://github.com/microsoft/onnxruntime/blob/v1.29.1/LICENSE)), with its bundled components listed in [`ThirdPartyNotices.txt`](https://github.com/microsoft/onnxruntime/blob/v1.29.1/ThirdPartyNotices.txt).
 - **Obligations:** keep both notices with the library. The images copy them from the release archive into `onnxruntime/`.
+
+## CUDA and cuDNN
+
+- **What:** the CUDA runtime libraries and cuDNN 9 in the `nvidia/cuda:*-cudnn-runtime-ubuntu24.04` base images of the CUDA images, plus ONNX Runtime's CUDA provider (`libonnxruntime_providers_cuda.so`, under ONNX Runtime's MIT license).
+- **License:** the NVIDIA Deep Learning Container License, which covers the base image's contents. The CUDA images link it as `NGC-DL-CONTAINER-LICENSE`.
+- **Obligations:** fine for self-hosting. Anyone redistributing a CUDA image has to follow that license's terms for NVIDIA's components.
 
 ## KittenTTS models
 

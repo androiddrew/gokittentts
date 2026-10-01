@@ -23,7 +23,7 @@ ORT_GPU_LIB := $(ORT_GPU_DIR)/lib/libonnxruntime.so.$(ORT_VERSION)
 MODELS_DIR := models
 MODELS := kitten-tts-mini-0.8 kitten-tts-micro-0.8 kitten-tts-nano-0.8-int8 kitten-tts-nano-0.8-fp32
 
-.PHONY: build test test-native test-cuda onnxruntime-gpu image-cpu golden golden-test reference emoji-table
+.PHONY: build test test-native test-cuda onnxruntime-gpu image-cpu image-cuda12 image-cuda13 golden golden-test reference emoji-table
 
 build:
 	CGO_ENABLED=1 go build -tags espeak -o bin/gokittentts ./cmd/gokittentts
@@ -79,6 +79,13 @@ image-cpu:
 			--load -t $(IMAGE):cpu-$${p#linux/} . ; \
 	done
 	$(if $(filter linux/$(HOST_ARCH),$(IMAGE_PLATFORMS)),docker tag $(IMAGE):cpu-$(HOST_ARCH) $(IMAGE):cpu)
+
+# The CUDA images are amd64 only, and bake and default to nano-fp32.
+image-cuda12 image-cuda13: BAKE_MODELS = kitten-tts-nano-0.8-fp32
+image-cuda12 image-cuda13: image-cuda%:
+	docker buildx build --platform linux/amd64 -f docker/Dockerfile.cuda \
+		--build-arg CUDA=$* --build-arg BAKE_MODELS=$(BAKE_MODELS) --build-arg VCS_REF=$(VCS_REF) \
+		--load -t $(IMAGE):cuda$* .
 
 # Regenerate testdata/golden.json and testdata/normalize_golden.json from the
 # Python reference.

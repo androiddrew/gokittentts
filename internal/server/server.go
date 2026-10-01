@@ -50,22 +50,30 @@ type KittenEngine struct {
 
 // Stream gets and loads the model if needed and streams r.
 func (e KittenEngine) Stream(ctx context.Context, model string, r kittentts.Request) iter.Seq2[kittentts.Chunk, error] {
-	fail := func(err error) iter.Seq2[kittentts.Chunk, error] {
+	m, err := e.load(ctx, model)
+	if err != nil {
 		return func(yield func(kittentts.Chunk, error) bool) { yield(kittentts.Chunk{}, err) }
 	}
+	return m.Stream(ctx, r)
+}
+
+// Load gets and loads the model if needed. It fails with
+// ErrModelUnavailable if the model can't be got.
+func (e KittenEngine) Load(ctx context.Context, model string) error {
+	_, err := e.load(ctx, model)
+	return err
+}
+
+func (e KittenEngine) load(ctx context.Context, model string) (*kittentts.Model, error) {
 	if !e.Loaded(model) {
 		if _, err := e.Store.Ensure(ctx, model); err != nil {
 			if ctx.Err() != nil {
-				return fail(ctx.Err())
+				return nil, ctx.Err()
 			}
-			return fail(fmt.Errorf("%w: %w", ErrModelUnavailable, err))
+			return nil, fmt.Errorf("%w: %w", ErrModelUnavailable, err)
 		}
 	}
-	m, err := e.Model(model)
-	if err != nil {
-		return fail(err)
-	}
-	return m.Stream(ctx, r)
+	return e.Model(model)
 }
 
 // Downloads reports the store's downloads of the model.

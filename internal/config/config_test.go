@@ -19,7 +19,7 @@ default_model: kitten-tts-micro-0.8
 models:
   kitten-tts-mini-0.8:  { device: cpu, intra_op_threads: 4, max_queue: 3 }
   kitten-tts-micro-0.8: { device: cpu }
-  kitten-tts-nano-0.8-fp32: { device: cuda, cuda_device_id: 1 }
+  kitten-tts-nano-0.8-fp32: { device: cuda, cuda_device_id: 1, preload: true }
   my-kitten: { repo: someone/my-kitten, revision: abc123 }
 model_aliases:
   tts-1: default
@@ -46,10 +46,10 @@ func TestParse(t *testing.T) {
 		c.ModelsDir != "/var/lib/gokittentts/models" || c.DefaultModel != "kitten-tts-micro-0.8" {
 		t.Errorf("top-level fields: %+v", c)
 	}
-	if m := c.Models["kitten-tts-mini-0.8"]; m.Device != "cpu" || m.IntraOpThreads != 4 || m.QueueSize() != 3 {
+	if m := c.Models["kitten-tts-mini-0.8"]; m.Device != "cpu" || m.IntraOpThreads != 4 || m.QueueSize() != 3 || m.Preload {
 		t.Errorf("mini: %+v, queue %d", m, m.QueueSize())
 	}
-	if m := c.Models["kitten-tts-nano-0.8-fp32"]; m.Device != kittentts.CUDA || m.CUDADeviceID != 1 {
+	if m := c.Models["kitten-tts-nano-0.8-fp32"]; m.Device != kittentts.CUDA || m.CUDADeviceID != 1 || !m.Preload {
 		t.Errorf("nano-fp32: %+v", m)
 	}
 	if c.Limits.RequestTimeout != 45*time.Second {

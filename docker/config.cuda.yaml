@@ -1,0 +1,22 @@
+# The CUDA images' config, at /etc/gokittentts/config.yaml. Mount your own over
+# it to change anything; KITTEN_DEFAULT_MODEL, KITTEN_LISTEN and KITTEN_API_KEY
+# override it from the environment.
+listen: ":8880"
+onnxruntime_lib: /opt/onnxruntime/lib/libonnxruntime.so.1.29.1
+models_dir: /var/lib/gokittentts/models   # baked and downloaded models; mount a volume here
+download: true                           # fetch missing models from Hugging Face on first use
+default_model: kitten-tts-nano-0.8-fp32
+
+# Only nano-fp32 runs wholly on the GPU. The int8 models keep their quantized
+# ops on the CPU, but still run about 1.6-1.9x faster than on the CPU alone
+# (see the README's table). nano-fp32 loads before serve listens, so without a
+# usable GPU the container exits with the CUDA error.
+models:
+  kitten-tts-mini-0.8:      { device: cuda }
+  kitten-tts-micro-0.8:     { device: cuda }
+  kitten-tts-nano-0.8-int8: { device: cuda }
+  kitten-tts-nano-0.8-fp32: { device: cuda, preload: true }
+
+ffmpeg: ffmpeg
+metrics: true
+log_format: json
