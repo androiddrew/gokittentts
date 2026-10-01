@@ -102,7 +102,7 @@ The phonemes and token ids match the Python reference token for token. Models ar
 67. As an admin, I want a failure to enable CUDA to be an error, never a silent CPU fallback, so that I know when the GPU isn't being used.
 68. As an admin, I want a CPU image for amd64 and arm64, so that it runs on desktops, servers and a Pi 5.
 69. As an admin, I want CUDA 12 and CUDA 13 images, so that I can match my host driver.
-70. As an admin, I want the CUDA images to default to nano-fp32, so that the GPU gives real speedups out of the box.
+70. As an admin, I want the CUDA images to default to a model that runs wholly on the GPU (nano-fp32 at first, mini-fp32 since 2026-10-01), so that the GPU gives real speedups out of the box.
 71. As an admin, I want to bake models into an image with `BAKE_MODELS`, or build a slim image with none, so that I choose image size against first-request latency.
 72. As an admin, I want downloaded models kept on a mounted volume, so that they survive container restarts.
 73. As a Pi 5 owner, I want a documented build that bakes and defaults to nano-fp32, so that I get real-time speech on the Pi.
@@ -205,7 +205,7 @@ The phonemes and token ids match the Python reference token for token. Models ar
 - **Config.**
     - One YAML file, with `KITTEN_API_KEY`, `KITTEN_DEFAULT_MODEL` and `KITTEN_LISTEN` overrides.
     - Validated at startup: device, default model, voice map targets, speed range.
-    - A model may set `preload: true` to load before `serve` listens, and `serve` exits if it can't. This is the one exception to loading on first use. The CUDA images set it on nano-fp32, so they fail at once without a usable GPU.
+    - A model may set `preload: true` to load before `serve` listens, and `serve` exits if it can't. This is the one exception to loading on first use. The CUDA images set it on their default model, so they fail at once without a usable GPU.
 - **Server.**
     - Holds an engine behind an interface, so it can be tested with a fake.
     - Resolves models (name → alias) and voices (Kitten name → key → OpenAI map → 400).
@@ -216,7 +216,7 @@ The phonemes and token ids match the Python reference token for token. Models ar
 - **CLI.** One binary with `serve`, `say`, `pull` and `bench`.
 - **Images.**
     - `cpu` (amd64 and arm64, Debian trixie-slim, bakes mini).
-    - `cuda12` and `cuda13` (amd64, NVIDIA cuDNN runtime bases, bake and default to nano-fp32).
+    - `cuda12` and `cuda13` (amd64, NVIDIA cuDNN runtime bases). They bake and default to mini-fp32, the GPU conversion of mini, and also bake mini-fp16 and nano-fp32. Until 2026-10-01 they defaulted to nano-fp32.
     - Multi-stage cgo build. `BAKE_MODELS` runs `pull` with the same manifest checks.
 
 **API contracts.** `POST /v1/audio/speech` follows OpenAI's `CreateSpeechRequest`, plus `normalize` and `markdown`, both boolean and defaulting to true. The SSE events are `speech.audio.delta` (base64 audio) and `speech.audio.done`. In `done`, usage input tokens = token ids, output tokens = sum of durations, and total is their sum. The error bodies use OpenAI's shape.
@@ -290,7 +290,7 @@ Small leaf behaviors that can't be reached cleanly through a seam get small tabl
 
 ## Further Notes
 
-- Speed comes from quantization more than from model size. Dynamic int8 ops stay on the CPU even with CUDA (mini: 559 CPU nodes, 503 inserted copies). That's why the CUDA images and the Pi default to nano-fp32.
+- Speed comes from quantization more than from model size. Dynamic int8 ops stay on the CPU even with CUDA (mini: 559 CPU nodes, 503 inserted copies). That's why the CUDA images and the Pi default to nano-fp32. Mini dequantized to fp32 (and fp16) runs wholly on CUDA; those conversions are published as `androiddrew/kitten-tts-mini-0.8-fp32` and `-fp16`, pinned in the manifest, and are the recommended mini on a GPU (2026-10-01).
 - Risks to watch:
     - espeak-ng version drift changes the ids. Mitigation: the version is recorded in the goldens and the images pin the package.
     - `onnxruntime_go` and ONNX Runtime can drift apart. Mitigation: pin both and check the version at startup.

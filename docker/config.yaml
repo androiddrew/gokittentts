@@ -7,11 +7,15 @@ models_dir: /var/lib/gokittentts/models   # baked and downloaded models; mount a
 download: true                           # fetch missing models from Hugging Face on first use
 default_model: kitten-tts-mini-0.8
 
+# The fp32 and fp16 conversions of mini are built for the GPU. They run on the
+# CPU too (fp16 there is unmeasured), so every pinned model works in every image.
 models:
   kitten-tts-mini-0.8:      { device: cpu }
   kitten-tts-micro-0.8:     { device: cpu }
   kitten-tts-nano-0.8-int8: { device: cpu }
   kitten-tts-nano-0.8-fp32: { device: cpu }
+  kitten-tts-mini-0.8-fp32: { device: cpu }
+  kitten-tts-mini-0.8-fp16: { device: cpu }
 
 ffmpeg: ffmpeg
 metrics: true

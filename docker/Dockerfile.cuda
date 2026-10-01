@@ -41,9 +41,10 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 	CGO_ENABLED=1 go build -tags espeak -trimpath -buildvcs=false -ldflags "-X main.revision=$VCS_REF" \
 		-o /out/gokittentts ./cmd/gokittentts
 
-# The baked models, pulled with the manifest's checks.
+# The baked models, pulled with the manifest's checks: mini-fp32, the default,
+# mini-fp16 and nano-fp32. Keep in step with the Makefile's CUDA_BAKE_MODELS.
 FROM src AS models
-ARG BAKE_MODELS=kitten-tts-nano-0.8-fp32
+ARG BAKE_MODELS=kitten-tts-mini-0.8-fp32,kitten-tts-mini-0.8-fp16,kitten-tts-nano-0.8-fp32
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
 	go build -o /usr/local/bin/gokittentts ./cmd/gokittentts
 RUN set -eux; \
