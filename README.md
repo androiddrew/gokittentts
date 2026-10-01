@@ -299,6 +299,19 @@ Recorded at commit `f37842a` with 5 runs, in [`bench/v0.1.0/`](bench/v0.1.0/). T
 
 Mini is faster than real time on the Ryzen, but it can't start speaking within 1 s. At an RTF near 0.58, any first chunk over about 1.7 s of audio takes more than a second, and even "Hello from Go." takes 1.2 s. The miss is accepted for v0.1.0. Use nano-fp32 or a GPU where speech must start within a second.
 
+For comparison, the KittenTTS Python reference with mini on the same machine (`make bench-python-ref`, onnxruntime 1.29.0, since PyPI has no 1.29.1) had these results:
+
+| Mini on the Ryzen 5 5600X | RTF p50 / p95 | First audio p50 / p95 | Requests at or over 1 s |
+| --- | --- | --- | --- |
+| Python reference | 0.617 / 0.728 | 3.09 s / 5.86 s | 90 of 95 |
+| gokittentts | 0.574 / 0.659 | 1.89 s / 3.86 s | 84 of 95 |
+
+- **Single sentences:** gokittentts starts 5–20% sooner. For example, "Hello from Go." took a median 1.12 s against 1.34 s.
+- **Multi-sentence replies:** it starts 2–6× sooner. For example, the bread recipe took 0.88 s against 5.32 s.
+- **Why:** gokittentts splits a long first chunk at its first comma, so the first model run is short.
+- **Caveat:** the reference has no markdown pass, so it reads the two markdown texts as written.
+- **Record:** [`bench/v0.1.0/toor-runcible-mini-cpu-python-ref.json`](bench/v0.1.0/toor-runcible-mini-cpu-python-ref.json).
+
 ### Reading the results
 
 - **Noise.** Close other heavy programs, and use `--runs 5` or more for a release record. The p95 of 3 runs × 19 requests is about the third-worst sample, so one slow request moves it.

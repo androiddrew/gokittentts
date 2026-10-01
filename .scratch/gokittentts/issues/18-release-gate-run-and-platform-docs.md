@@ -34,3 +34,14 @@
 - **Docker bench examples** now pass `--hostname "$(hostname)"`, because a record made in a container otherwise names the container's ID as the host.
 
 **2026-10-01, decision (owner).** The x86_64 mini first-audio miss is accepted for v0.1.0, with the gate model and targets unchanged. It stays visible: it's recorded as a fail in `bench/v0.1.0/` and marked "accepted for v0.1.0" in the README results table. The Pi 5 run is the only open item.
+
+**2026-10-01, Python reference comparison.** The question was whether the mini miss is a gokittentts regression. It isn't.
+
+- **What was run:** `scripts/bench_python_ref.py` (`make bench-python-ref`) times the vendored KittenTTS reference's `generate_stream` with text cleaning on. It uses `bench`'s corpus (same SHA-256), warm-up, 5 runs and nearest-rank percentiles. The record is `bench/v0.1.0/toor-runcible-mini-cpu-python-ref.json`.
+- **Results, mini on the Ryzen 5 5600X:**
+    - Python (onnxruntime 1.29.0, since PyPI has no 1.29.1): RTF p50/p95 0.617/0.728, first audio p50/p95 3.09/5.86 s, 90 of 95 requests at or over 1 s.
+    - gokittentts: RTF 0.574/0.659, first audio 1.89/3.86 s, 84 of 95.
+- **Per request (medians):**
+    - Single sentences: Go is 5–20% faster.
+    - Multi-sentence texts: Go is 2–6× faster, from the short-first-chunk rule. Examples: the bread recipe at 0.88 s against 5.32 s, and the meeting notice at 1.14 s against 4.85 s.
+- **Noise:** an earlier, unrecorded Python run had RTF p95 0.866, so RTF p95 varies run to run by about ±0.1 here.
