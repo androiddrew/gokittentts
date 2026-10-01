@@ -3,6 +3,7 @@ package audio_test
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -49,4 +50,66 @@ func TestWriteWAV(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWAVStreamEncoder(t *testing.T) {
+	header := "52494646 ffffffff 57415645" + // "RIFF", unknown size, "WAVE"
+		" 666d7420 10000000 0100 0100" + // "fmt ", 16, PCM, mono
+		" c05d0000 80bb0000 0200 1000" + // 24000 Hz, 48000 bytes/s, align 2, 16 bits
+		" 64617461 ffffffff" // "data", unknown size
+	cases := []struct {
+		name   string
+		chunks [][]float32
+		// each Write on the underlying writer, little-endian hex
+		want []string
+	}{
+		{"no audio is just the header", nil, []string{header}},
+		{"the header goes out with the first chunk", [][]float32{{0, 0.5}, {-0.5}}, []string{header + " 0000 0040", "00c0"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var w writeRecorder
+			enc := audio.NewWAVStreamEncoder(&w, 24000)
+			for _, chunk := range c.chunks {
+				if err := enc.Write(chunk); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := enc.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if len(w.writes) != len(c.want) {
+				t.Fatalf("%d writes, want %d: %x", len(w.writes), len(c.want), w.writes)
+			}
+			for i, want := range c.want {
+				if got := hex.EncodeToString(w.writes[i]); got != strings.ReplaceAll(want, " ", "") {
+					t.Errorf("write %d\n got %s\nwant %s", i, got, strings.ReplaceAll(want, " ", ""))
+				}
+			}
+		})
+	}
+}
+
+func TestPCMEncoder(t *testing.T) {
+	var w writeRecorder
+	enc := audio.NewPCMEncoder(&w)
+	for _, chunk := range [][]float32{{0, 0.5}, {-0.5}} {
+		if err := enc.Write(chunk); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := enc.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if got := fmt.Sprintf("%x", w.writes); got != "[00000040 00c0]" {
+		t.Errorf("writes %s, want [00000040 00c0], one per chunk", got)
+	}
+}
+
+// writeRecorder records each Write separately.
+type writeRecorder struct{ writes [][]byte }
+
+func (w *writeRecorder) Write(p []byte) (int, error) {
+	w.writes = append(w.writes, bytes.Clone(p))
+	return len(p), nil
 }

@@ -169,23 +169,29 @@ func (m *Model) voiceKey(voice string) (string, error) {
 // Synthesize returns the PCM for the whole request.
 func (m *Model) Synthesize(ctx context.Context, r Request) ([]float32, error) {
 	var pcm []float32
-	for chunk, err := range m.Stream(ctx, r) {
+	for c, err := range m.Stream(ctx, r) {
 		if err != nil {
 			return nil, err
 		}
-		pcm = append(pcm, chunk...)
+		pcm = append(pcm, c.PCM...)
 	}
 	return pcm, nil
 }
 
-// Stream yields the PCM one chunk (about a sentence) at a time, each with its
-// last 5,000 samples trimmed. It checks ctx between chunks; a chunk's run
-// can't be interrupted. After an error it yields nothing more.
-func (m *Model) Stream(ctx context.Context, r Request) iter.Seq2[[]float32, error] {
-	return func(yield func([]float32, error) bool) {
+// Chunk is the audio for one chunk of text (about a sentence).
+type Chunk struct {
+	PCM    []float32 // trimmed by 5,000 samples
+	Tokens int       // token ids the model was run on
+	Frames int       // the sum of the model's per-token durations, 600 samples each before trimming
+}
+
+// Stream yields the audio one chunk at a time. It checks ctx between chunks;
+// a chunk's run can't be interrupted. After an error it yields nothing more.
+func (m *Model) Stream(ctx context.Context, r Request) iter.Seq2[Chunk, error] {
+	return func(yield func(Chunk, error) bool) {
 		key, err := m.voiceKey(r.Voice)
 		if err != nil {
-			yield(nil, err)
+			yield(Chunk{}, err)
 			return
 		}
 		speed := r.Speed
@@ -194,15 +200,19 @@ func (m *Model) Stream(ctx context.Context, r Request) iter.Seq2[[]float32, erro
 		}
 		for _, text := range chunk.Split(r.Text) {
 			if err := ctx.Err(); err != nil {
-				yield(nil, err)
+				yield(Chunk{}, err)
 				return
 			}
-			wave, _, err := m.run(text, key, speed)
+			wave, durations, err := m.run(text, key, speed)
 			if err != nil {
-				yield(nil, fmt.Errorf("kittentts: %q: %w", text, err))
+				yield(Chunk{}, fmt.Errorf("kittentts: %q: %w", text, err))
 				return
 			}
-			if !yield(wave[:max(0, len(wave)-trimSamples)], nil) {
+			c := Chunk{PCM: wave[:max(0, len(wave)-trimSamples)], Tokens: len(durations)}
+			for _, d := range durations {
+				c.Frames += int(d)
+			}
+			if !yield(c, nil) {
 				return
 			}
 		}

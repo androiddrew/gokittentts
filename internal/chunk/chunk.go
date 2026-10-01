@@ -1,6 +1,8 @@
 // Package chunk splits text into the sentence-sized chunks the model is run
 // on. It is a port of KittenTTS preprocess.py's chunk_text,
-// _is_sentence_boundary and ensure_punctuation.
+// _is_sentence_boundary and ensure_punctuation, with one recorded deviation:
+// a first chunk over FirstMaxLen characters is split at its first comma, so
+// the first model run is short and streamed audio starts sooner.
 package chunk
 
 import (
@@ -14,6 +16,10 @@ import (
 // word boundaries.
 const MaxLen = 400
 
+// FirstMaxLen is the longest first chunk, in characters, before it is split
+// at its first comma. Python has no such rule.
+const FirstMaxLen = 120
+
 var nonBoundaryAbbreviations = []string{
 	"dr", "prof", "mr", "mrs", "ms", "fig", "figs", "pp", "p", "ch", "sec",
 	"jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct",
@@ -23,7 +29,9 @@ var nonBoundaryAbbreviations = []string{
 // Split cuts text into sentences at ".", "!" or "?" followed by whitespace or
 // the end of the text, skipping decimals, common abbreviations and a.m./p.m.
 // Sentences longer than MaxLen characters are split at word boundaries. Every
-// chunk ends in one of .!?,;: (a "," is appended if needed).
+// chunk ends in one of .!?,;: (a "," is appended if needed). A first chunk
+// longer than FirstMaxLen is split after its first comma that is followed by
+// whitespace (so "1,000" stays whole).
 func Split(text string) []string {
 	rs := []rune(text)
 	var sentences []string
@@ -66,6 +74,17 @@ func Split(text string) []string {
 		}
 		if current != "" {
 			chunks = append(chunks, ensurePunctuation(current))
+		}
+	}
+	if len(chunks) > 0 && utf8.RuneCountInString(chunks[0]) > FirstMaxLen {
+		first := chunks[0]
+		for i, r := range first {
+			if r == ',' && i+1 < len(first) {
+				if next, _ := utf8.DecodeRuneInString(first[i+1:]); unicode.IsSpace(next) {
+					chunks = slices.Insert(chunks[1:], 0, first[:i+1], strings.TrimSpace(first[i+1:]))
+					break
+				}
+			}
 		}
 	}
 	return chunks

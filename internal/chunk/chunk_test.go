@@ -25,6 +25,13 @@ func TestSplit(t *testing.T) {
 		strings.Join(words[100:], " ") + ",",
 	}
 
+	// 15 + 108 = 123 characters, over FirstMaxLen.
+	longFirstHead := "When it rains,"
+	longFirstTail := strings.Repeat("it pours ", 12) + "on the town."
+	longFirst := longFirstHead + " " + longFirstTail + " Done."
+	// 119 characters and a period.
+	first120 := "So, " + strings.Repeat("x", 115) + "."
+
 	cases := []struct {
 		name string
 		in   string
@@ -50,6 +57,16 @@ func TestSplit(t *testing.T) {
 		{"long sentence then short", longWords + ". Short one.", []string{
 			longChunks[0], longChunks[1], strings.Join(words[100:], " ") + ".", "Short one.",
 		}},
+
+		// Deviation from Python: a first chunk over FirstMaxLen characters is
+		// split at its first comma, so the first model run is short.
+		{"deviation: long first chunk splits at its first comma", longFirst, []string{longFirstHead, longFirstTail, "Done."}},
+		{"deviation: first chunk of exactly 120 characters stays whole", first120, []string{first120}},
+		{"deviation: only the first chunk splits", "Short. " + longFirst, []string{"Short.", longFirst[:len(longFirst)-len(" Done.")], "Done."}},
+		{"deviation: long first chunk without a comma stays whole", strings.Repeat("a ", 70) + "end.", []string{strings.Repeat("a ", 70) + "end."}},
+		{"deviation: digit-grouping commas don't split", strings.Repeat("a ", 60) + "1,000 cats, and dogs.", []string{strings.Repeat("a ", 60) + "1,000 cats,", "and dogs."}},
+		{"deviation: a comma before a newline splits", "When it rains,\n" + longFirstTail, []string{longFirstHead, longFirstTail}},
+		{"deviation: a trailing comma doesn't split", strings.Repeat("a ", 70) + "end", []string{strings.Repeat("a ", 70) + "end,"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

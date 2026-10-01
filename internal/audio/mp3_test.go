@@ -63,3 +63,37 @@ func TestWriteMP3RejectsUnsupportedRate(t *testing.T) {
 		t.Error("WriteMP3 at 23456 Hz succeeded, want an error")
 	}
 }
+
+func TestMP3EncoderChunkingDoesNotChangeTheOutput(t *testing.T) {
+	const rate = 24000
+	samples := make([]float32, rate)
+	for i := range samples {
+		samples[i] = 0.5 * float32(math.Sin(2*math.Pi*440*float64(i)/rate))
+	}
+	var whole bytes.Buffer
+	if err := audio.WriteMP3(&whole, samples, rate); err != nil {
+		t.Fatal(err)
+	}
+
+	var chunked bytes.Buffer
+	enc, err := audio.NewMP3Encoder(&chunked, rate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rest := samples
+	for _, n := range []int{100, 1000, 576, 7, 5000} {
+		if err := enc.Write(rest[:n]); err != nil {
+			t.Fatal(err)
+		}
+		rest = rest[n:]
+	}
+	if err := enc.Write(rest); err != nil {
+		t.Fatal(err)
+	}
+	if err := enc.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(chunked.Bytes(), whole.Bytes()) {
+		t.Errorf("chunked encoding is %d bytes and differs from the %d-byte whole encoding", chunked.Len(), whole.Len())
+	}
+}

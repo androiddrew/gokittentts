@@ -172,7 +172,7 @@ The phonemes and token ids match the Python reference token for token. Models ar
 
 **Modules** (deep modules with small interfaces):
 
-- **Public library (`kittentts`).** `NewEngine(ortLibPath, []ModelConfig)`, `Engine.Model(name)` (loads on first use), `Model.Voices()`, `Model.Synthesize(ctx, Request) ([]float32, error)`, `Model.Stream(ctx, Request) iter.Seq2[[]float32, error]`, `Engine.Close()`, and `SampleRate = 24000`.
+- **Public library (`kittentts`).** `NewEngine(ortLibPath, []ModelConfig)`, `Engine.Model(name)` (loads on first use), `Model.Voices()`, `Model.Synthesize(ctx, Request) ([]float32, error)`, `Model.Stream(ctx, Request) iter.Seq2[Chunk, error]` (a `Chunk` carries the trimmed PCM, the token count and the summed durations, which the SSE usage needs), `Engine.Close()`, and `SampleRate = 24000`.
     - `ModelConfig` holds the name, dir, device, CUDA device id and intra-op threads.
     - `Request` holds the text, voice, speed (already clamped), and the `Normalize` and `Markdown` flags.
     - The library owns the whole text-to-PCM pipeline. It has no queue, auth or encoding.
@@ -181,7 +181,7 @@ The phonemes and token ids match the Python reference token for token. Models ar
 - **Normalizer.** A port of Python's `normalize_text` (read-aloud mode), not `TextPreprocessor`, covering the substitution list in order and its helpers. Span tracking is not ported.
     - RE2 lookarounds and backreferences are rewritten as a match plus a Go check.
     - The first deliberate fixes are currency with a scale word, and units after numbers (ported from `TextPreprocessor`'s `expand_units` and `expand_scale_suffixes`).
-- **Chunker.** A port of `chunk_text` (400 characters), `ensure_punctuation` and the sentence-boundary rules. Recorded deviation: a first chunk over 120 characters is split at its first comma.
+- **Chunker.** A port of `chunk_text` (400 characters), `ensure_punctuation` and the sentence-boundary rules. Recorded deviation: a first chunk over 120 characters is split at its first comma followed by whitespace (so `1,000` stays whole).
 - **Phonemizer.**
     - espeak-ng IPA with stress marks, with a process-wide mutex around espeak's global state.
     - The punctuation splitter is a hand-written rune scanner: `.` and `,` between two ASCII digits are ordinary characters (the phonemizer ≥ 3.4.0 rule).

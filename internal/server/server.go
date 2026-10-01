@@ -2,17 +2,19 @@
 package server
 
 import (
-	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"log/slog"
 	"net/http"
 	"os/exec"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"unicode/utf8"
 
 	"github.com/androiddrew/gokittentts/internal/audio"
@@ -20,21 +22,21 @@ import (
 	"github.com/androiddrew/gokittentts/kittentts"
 )
 
-// Engine synthesizes a request with the named model.
+// Engine streams a request's audio with the named model, one chunk at a time.
 type Engine interface {
-	Synthesize(ctx context.Context, model string, r kittentts.Request) ([]float32, error)
+	Stream(ctx context.Context, model string, r kittentts.Request) iter.Seq2[kittentts.Chunk, error]
 }
 
 // KittenEngine adapts *kittentts.Engine to Engine.
 type KittenEngine struct{ *kittentts.Engine }
 
-// Synthesize loads the model if needed and synthesizes r.
-func (e KittenEngine) Synthesize(ctx context.Context, model string, r kittentts.Request) ([]float32, error) {
+// Stream loads the model if needed and streams r.
+func (e KittenEngine) Stream(ctx context.Context, model string, r kittentts.Request) iter.Seq2[kittentts.Chunk, error] {
 	m, err := e.Model(model)
 	if err != nil {
-		return nil, err
+		return func(yield func(kittentts.Chunk, error) bool) { yield(kittentts.Chunk{}, err) }
 	}
-	return m.Synthesize(ctx, r)
+	return m.Stream(ctx, r)
 }
 
 // OpenAI accepts speeds in this range; anything else is a 400.
@@ -158,44 +160,144 @@ func (s *server) speech(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch req.StreamFormat {
-	case "", "audio":
+	case "", "audio", "sse":
 	default:
 		writeError(w, http.StatusBadRequest, invalidRequest, "stream_format",
-			fmt.Sprintf("stream_format %q is not supported; use audio", req.StreamFormat))
+			fmt.Sprintf("stream_format %q is not supported; use audio or sse", req.StreamFormat))
 		return
 	}
 
-	pcm, err := s.engine.Synthesize(r.Context(), model, kittentts.Request{
+	// Pull the first chunk before sending headers, so a failure that comes
+	// before any audio is still an error response.
+	next, stop := iter.Pull2(s.engine.Stream(r.Context(), model, kittentts.Request{
 		Text:      *req.Input,
 		Voice:     voice,
 		Speed:     max(s.cfg.Speed.Min, min(s.cfg.Speed.Max, float32(speed))),
 		Normalize: req.Normalize == nil || *req.Normalize,
 		Markdown:  req.Markdown == nil || *req.Markdown,
-	})
+	}))
+	defer stop()
+	chunk, err, more := next()
 	if err != nil {
 		slog.Error("synthesis failed", "model", model, "err", err)
 		writeError(w, http.StatusInternalServerError, serverError, "", "synthesis failed: "+err.Error())
 		return
 	}
 
-	var buf bytes.Buffer
-	switch {
-	case format == "mp3":
-		err = audio.WriteMP3(&buf, pcm, kittentts.SampleRate)
-	case format == "wav":
-		err = audio.WriteWAV(&buf, pcm, kittentts.SampleRate)
-	case format == "pcm":
-		buf.Write(audio.PCM16(pcm))
-	case f.ffmpeg:
-		err = audio.EncodeFFmpeg(r.Context(), &buf, s.ffmpeg, pcm, kittentts.SampleRate, format)
+	sink := &flushWriter{w: w, rc: http.NewResponseController(w)}
+	var out io.Writer = sink
+	var sse *sseWriter
+	if req.StreamFormat == "sse" {
+		sse = &sseWriter{sink}
+		out = sse
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+	} else {
+		w.Header().Set("Content-Type", f.contentType)
 	}
+	// The headers go first: ffmpeg's output is copied to the response from
+	// another goroutine as soon as it starts.
+	w.WriteHeader(http.StatusOK)
+	sink.rc.Flush()
+	enc, err := s.encoder(r.Context(), out, format)
 	if err != nil {
-		slog.Error("encoding failed", "format", format, "err", err)
-		writeError(w, http.StatusInternalServerError, serverError, "", "encoding "+format+" failed: "+err.Error())
-		return
+		slog.Error("starting encoder", "format", format, "err", err)
+		panic(http.ErrAbortHandler)
 	}
-	w.Header().Set("Content-Type", f.contentType)
-	w.Write(buf.Bytes())
+
+	var total usage
+	for ; more; chunk, err, more = next() {
+		if err == nil {
+			total.InputTokens += chunk.Tokens
+			total.OutputTokens += chunk.Frames
+			err = enc.Write(chunk.PCM)
+		}
+		if err == nil {
+			// A disconnected client cancels the context; don't start another run.
+			err = r.Context().Err()
+		}
+		if err != nil {
+			// Drop the encoder's tail, but still reap it.
+			sink.discard.Store(true)
+			enc.Close()
+			if r.Context().Err() != nil {
+				slog.Info("client disconnected", "model", model, "err", err)
+				return
+			}
+			slog.Error("stream failed", "model", model, "format", format, "err", err)
+			panic(http.ErrAbortHandler) // cut the response off so it can't pass for complete audio
+		}
+	}
+	if err := enc.Close(); err != nil {
+		slog.Error("encoding failed", "format", format, "err", err)
+		panic(http.ErrAbortHandler)
+	}
+	if sse != nil {
+		total.TotalTokens = total.InputTokens + total.OutputTokens
+		sse.event(map[string]any{"type": "speech.audio.done", "usage": total})
+	}
+}
+
+// encoder returns the Encoder for format, writing to w.
+func (s *server) encoder(ctx context.Context, w io.Writer, format string) (audio.Encoder, error) {
+	switch format {
+	case "mp3":
+		return audio.NewMP3Encoder(w, kittentts.SampleRate)
+	case "wav":
+		return audio.NewWAVStreamEncoder(w, kittentts.SampleRate), nil
+	case "pcm":
+		return audio.NewPCMEncoder(w), nil
+	}
+	if formats[format].ffmpeg {
+		return audio.NewFFmpegEncoder(ctx, w, s.ffmpeg, kittentts.SampleRate, format)
+	}
+	return nil, fmt.Errorf("no encoder for %q", format)
+}
+
+// usage is the speech.audio.done usage: input tokens are the token ids the
+// model ran on, and output tokens are its summed durations.
+type usage struct {
+	InputTokens  int `json:"input_tokens"`
+	OutputTokens int `json:"output_tokens"`
+	TotalTokens  int `json:"total_tokens"`
+}
+
+// flushWriter flushes the response after every Write. Once discard is set,
+// it drops writes but reports success, so an encoder can still drain.
+type flushWriter struct {
+	w       io.Writer
+	rc      *http.ResponseController
+	discard atomic.Bool
+}
+
+func (f *flushWriter) Write(p []byte) (int, error) {
+	if f.discard.Load() {
+		return len(p), nil
+	}
+	n, err := f.w.Write(p)
+	if err != nil {
+		return n, err
+	}
+	return n, f.rc.Flush()
+}
+
+// sseWriter sends each Write as a speech.audio.delta event.
+type sseWriter struct{ w *flushWriter }
+
+func (s *sseWriter) Write(p []byte) (int, error) {
+	if err := s.event(map[string]string{"type": "speech.audio.delta", "audio": base64.StdEncoding.EncodeToString(p)}); err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+func (s *sseWriter) event(v any) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	_, err = s.w.Write(fmt.Appendf(nil, "data: %s\n\n", b))
+	return err
 }
 
 // supportedFormats lists the response formats this server can produce.

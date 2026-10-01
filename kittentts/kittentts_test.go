@@ -167,31 +167,39 @@ func TestSynthesizeRejectsUnknownVoice(t *testing.T) {
 func TestStreamYieldsOneTrimmedChunkAtATime(t *testing.T) {
 	m := mustModel(t, models[0])
 	req := kittentts.Request{Text: "First sentence. Second sentence! Third one?", Voice: "Leo", Speed: 1}
-	var chunks [][]float32
-	for pcm, err := range m.Stream(context.Background(), req) {
+	var chunks []kittentts.Chunk
+	for c, err := range m.Stream(context.Background(), req) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		chunks = append(chunks, pcm)
+		chunks = append(chunks, c)
 	}
 	if len(chunks) != 3 {
 		t.Fatalf("got %d chunks, want 3", len(chunks))
 	}
 	for i, c := range chunks {
-		if len(c) == 0 || rms(c) <= 0.01 {
-			t.Errorf("chunk %d: %d samples, RMS %.4f", i, len(c), rms(c))
+		if len(c.PCM) == 0 || rms(c.PCM) <= 0.01 {
+			t.Errorf("chunk %d: %d samples, RMS %.4f", i, len(c.PCM), rms(c.PCM))
 		}
 	}
 
 	// The sample values are random, but the durations are not, so each
-	// streamed chunk is exactly an untrimmed run less 5,000 samples.
+	// streamed chunk is exactly an untrimmed run less 5,000 samples, and it
+	// reports the run's token count and summed durations.
 	for i, text := range []string{"First sentence.", "Second sentence!", "Third one?"} {
-		wave, _, err := kittentts.RunChunk(m, text, "Leo")
+		wave, durations, err := kittentts.RunChunk(m, text, "Leo")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(chunks[i]) != len(wave)-5000 {
-			t.Errorf("chunk %d: %d samples, want %d (untrimmed %d)", i, len(chunks[i]), len(wave)-5000, len(wave))
+		if len(chunks[i].PCM) != len(wave)-5000 {
+			t.Errorf("chunk %d: %d samples, want %d (untrimmed %d)", i, len(chunks[i].PCM), len(wave)-5000, len(wave))
+		}
+		var frames int
+		for _, d := range durations {
+			frames += int(d)
+		}
+		if chunks[i].Tokens != len(durations) || chunks[i].Frames != frames {
+			t.Errorf("chunk %d: %d tokens, %d frames; want %d and %d", i, chunks[i].Tokens, chunks[i].Frames, len(durations), frames)
 		}
 	}
 }
@@ -202,7 +210,7 @@ func TestStreamStopsWhenContextIsCanceled(t *testing.T) {
 	defer cancel()
 	req := kittentts.Request{Text: "One. Two. Three.", Voice: "Kiki", Speed: 1}
 	var audio, errs int
-	for pcm, err := range m.Stream(ctx, req) {
+	for c, err := range m.Stream(ctx, req) {
 		if err != nil {
 			errs++
 			if err != context.Canceled {
@@ -211,7 +219,7 @@ func TestStreamStopsWhenContextIsCanceled(t *testing.T) {
 			continue
 		}
 		audio++
-		if len(pcm) > 0 {
+		if len(c.PCM) > 0 {
 			cancel()
 		}
 	}

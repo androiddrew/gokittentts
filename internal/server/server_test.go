@@ -3,17 +3,23 @@ package server_test
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"iter"
+	"maps"
 	"math"
 	"net/http"
 	"net/http/httptest"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/hajimehoshi/go-mp3"
 
@@ -22,24 +28,61 @@ import (
 	"github.com/androiddrew/gokittentts/kittentts"
 )
 
-// fakeEngine records what reaches it and returns fixed PCM.
+// fakeEngine records what reaches it and streams fixed chunks.
 type fakeEngine struct {
-	mu    sync.Mutex
-	calls []call
-	pcm   []float32
-	err   error
+	mu     sync.Mutex
+	calls  []call
+	pcm    []float32         // shorthand for one chunk, if chunks is nil
+	chunks []kittentts.Chunk // streamed in order
+	err    error             // yielded after the chunks
+
+	// gate, if set, paces the stream: each chunk after the first waits for
+	// a receive. produced counts the chunks yielded, and finished, if set,
+	// is closed when the stream returns.
+	gate     chan struct{}
+	produced int
+	finished chan struct{}
 }
 
 type call struct {
 	model string
 	req   kittentts.Request
+	ctx   context.Context
 }
 
-func (f *fakeEngine) Synthesize(_ context.Context, model string, r kittentts.Request) ([]float32, error) {
+func (f *fakeEngine) Stream(ctx context.Context, model string, r kittentts.Request) iter.Seq2[kittentts.Chunk, error] {
+	f.mu.Lock()
+	f.calls = append(f.calls, call{model, r, ctx})
+	chunks, err := f.chunks, f.err
+	if chunks == nil && err == nil {
+		chunks = []kittentts.Chunk{{PCM: f.pcm}}
+	}
+	f.mu.Unlock()
+	return func(yield func(kittentts.Chunk, error) bool) {
+		if f.finished != nil {
+			defer close(f.finished)
+		}
+		for i, c := range chunks {
+			if i > 0 && f.gate != nil {
+				<-f.gate
+			}
+			f.mu.Lock()
+			f.produced++
+			f.mu.Unlock()
+			if !yield(c, nil) {
+				return
+			}
+		}
+		if err != nil {
+			yield(kittentts.Chunk{}, err)
+		}
+	}
+}
+
+func (f *fakeEngine) producedCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.calls = append(f.calls, call{model, r})
-	return f.pcm, f.err
+	return f.produced
 }
 
 func (f *fakeEngine) last(t *testing.T) call {
@@ -150,6 +193,9 @@ func TestSpeechWAV(t *testing.T) {
 	b := rec.Body.Bytes()
 	if len(b) != 44+6 || string(b[:4]) != "RIFF" || string(b[8:12]) != "WAVE" {
 		t.Fatalf("not a 3-sample WAV: %x", b)
+	}
+	if got := hex.EncodeToString(b[4:8]) + hex.EncodeToString(b[40:44]); got != "ffffffff"+"ffffffff" {
+		t.Errorf("RIFF and data sizes %s, want ffffffff ffffffff (streamed)", got)
 	}
 	if got := hex.EncodeToString(b[22:24]) + hex.EncodeToString(b[24:28]) + hex.EncodeToString(b[34:36]); got != "0100"+"c05d0000"+"1000" {
 		t.Errorf("channels, rate, bits = %s, want mono, 24000 Hz, 16-bit", got)
@@ -323,16 +369,8 @@ func TestSpeechMP3IsTheDefault(t *testing.T) {
 		if ct := rec.Header().Get("Content-Type"); ct != "audio/mpeg" {
 			t.Errorf("Content-Type %q, want audio/mpeg", ct)
 		}
-		dec, err := mp3.NewDecoder(rec.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-		decoded, err := io.ReadAll(dec)
-		if err != nil {
-			t.Fatal(err)
-		}
-		// 16-bit stereo; the encoder pads to whole frames and flushes its delay.
-		if n := len(decoded) / 4; n < len(eng.pcm) || n > len(eng.pcm)+4*576 {
+		// The encoder pads to whole frames and flushes its delay.
+		if n := decodeMP3(t, rec.Body.Bytes()); n < len(eng.pcm) || n > len(eng.pcm)+4*576 {
 			t.Errorf("mp3 decodes to %d samples, want about %d", n, len(eng.pcm))
 		}
 	}
@@ -401,12 +439,257 @@ func TestUnsupportedFormats(t *testing.T) {
 	if msg := e["message"].(string); e["param"] != "response_format" || !strings.Contains(msg, "mp3, pcm, wav") {
 		t.Errorf("ogg: error %v, want param response_format naming mp3, pcm, wav", e)
 	}
-	e = openAIError(t, speech(t, h, `{"model":"tts-1","input":"Hi.","voice":"Leo","stream_format":"sse"}`), http.StatusBadRequest)
-	if e["param"] != "stream_format" {
-		t.Errorf("sse: error %v", e)
+	e = openAIError(t, speech(t, h, `{"model":"tts-1","input":"Hi.","voice":"Leo","stream_format":"chunks"}`), http.StatusBadRequest)
+	if msg := e["message"].(string); e["param"] != "stream_format" || !strings.Contains(msg, "audio") || !strings.Contains(msg, "sse") {
+		t.Errorf("chunks: error %v, want param stream_format naming audio and sse", e)
 	}
-	if rec := speech(t, h, `{"model":"tts-1","input":"Hi.","voice":"Leo","stream_format":"audio"}`); rec.Code != http.StatusOK {
-		t.Errorf("stream_format audio: status %d: %s", rec.Code, rec.Body)
+}
+
+// flushRecorder records the body sent at each Flush.
+type flushRecorder struct {
+	*httptest.ResponseRecorder
+	pending bytes.Buffer
+	flushes [][]byte
+}
+
+func (r *flushRecorder) Write(p []byte) (int, error) {
+	r.pending.Write(p)
+	return r.ResponseRecorder.Write(p)
+}
+
+func (r *flushRecorder) Flush() {
+	if r.pending.Len() > 0 {
+		r.flushes = append(r.flushes, bytes.Clone(r.pending.Bytes()))
+		r.pending.Reset()
+	}
+	r.ResponseRecorder.Flush()
+}
+
+func streamSpeech(t *testing.T, h http.Handler, body string) *flushRecorder {
+	t.Helper()
+	rec := &flushRecorder{ResponseRecorder: httptest.NewRecorder()}
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/v1/audio/speech", strings.NewReader(body)))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body)
+	}
+	if rec.pending.Len() > 0 {
+		t.Errorf("%d bytes were written but never flushed", rec.pending.Len())
+	}
+	return rec
+}
+
+// threeChunks are 0, 0.5 | -0.5 | 1 as 16-bit PCM: 0000 0040 | 00c0 | ff7f.
+var threeChunks = []kittentts.Chunk{
+	{PCM: []float32{0, 0.5}, Tokens: 5, Frames: 20},
+	{PCM: []float32{-0.5}, Tokens: 7, Frames: 30},
+	{PCM: []float32{1}, Tokens: 3, Frames: 12},
+}
+
+func TestRawStreamingFlushesEachChunk(t *testing.T) {
+	for _, streamFormat := range []string{``, `,"stream_format":"audio"`} {
+		h, eng := newServer(t)
+		eng.chunks = threeChunks
+		rec := streamSpeech(t, h, `{"model":"tts-1","input":"A. B. C.","voice":"Leo","response_format":"pcm"`+streamFormat+`}`)
+		if got := fmt.Sprintf("%x", rec.flushes); got != "[00000040 00c0 ff7f]" {
+			t.Errorf("flushes %s, want [00000040 00c0 ff7f], one per chunk", got)
+		}
+	}
+}
+
+func TestStreamedWAV(t *testing.T) {
+	h, eng := newServer(t)
+	eng.chunks = threeChunks
+	rec := streamSpeech(t, h, `{"model":"tts-1","input":"A. B. C.","voice":"Leo","response_format":"wav"}`)
+	if len(rec.flushes) != 3 {
+		t.Fatalf("%d flushes, want 3", len(rec.flushes))
+	}
+	first := rec.flushes[0]
+	if len(first) != 44+4 || string(first[:4]) != "RIFF" || string(first[36:40]) != "data" {
+		t.Fatalf("first flush %x, want the 44-byte header and the first chunk", first)
+	}
+	if got := hex.EncodeToString(first[4:8]) + " " + hex.EncodeToString(first[40:44]); got != "ffffffff ffffffff" {
+		t.Errorf("RIFF and data sizes %s, want ffffffff ffffffff", got)
+	}
+	if got := fmt.Sprintf("%x", [][]byte{first[44:], rec.flushes[1], rec.flushes[2]}); got != "[00000040 00c0 ff7f]" {
+		t.Errorf("samples %s, want [00000040 00c0 ff7f]", got)
+	}
+}
+
+func TestStreamedMP3(t *testing.T) {
+	h, eng := newServer(t)
+	second := make([]float32, kittentts.SampleRate/4)
+	eng.chunks = []kittentts.Chunk{{PCM: make([]float32, kittentts.SampleRate/4)}, {PCM: second}}
+	rec := streamSpeech(t, h, `{"model":"tts-1","input":"A. B.","voice":"Leo"}`)
+	// Each chunk fills at least one frame, so each sends audio as it
+	// arrives; the encoder's flush follows.
+	if len(rec.flushes) != 3 {
+		t.Errorf("%d flushes, want 3 (two chunks and the encoder flush)", len(rec.flushes))
+	}
+	if n := decodeMP3(t, rec.Body.Bytes()); n < kittentts.SampleRate/2 || n > kittentts.SampleRate/2+4*576 {
+		t.Errorf("mp3 decodes to %d samples, want about %d", n, kittentts.SampleRate/2)
+	}
+}
+
+// decodeMP3 returns the number of samples in an mp3.
+func decodeMP3(t *testing.T, b []byte) int {
+	t.Helper()
+	dec, err := mp3.NewDecoder(bytes.NewReader(b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pcm, err := io.ReadAll(dec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(pcm) / 4 // the decoder always writes 16-bit stereo
+}
+
+func TestSSE(t *testing.T) {
+	h, eng := newServer(t)
+	eng.chunks = threeChunks
+	rec := streamSpeech(t, h, `{"model":"tts-1","input":"A. B. C.","voice":"Leo","response_format":"pcm","stream_format":"sse"}`)
+	if ct := rec.Header().Get("Content-Type"); ct != "text/event-stream" {
+		t.Errorf("Content-Type %q, want text/event-stream", ct)
+	}
+	if len(rec.flushes) != 4 {
+		t.Errorf("%d flushes, want 4 (three deltas and done)", len(rec.flushes))
+	}
+	events := strings.SplitAfter(rec.Body.String(), "\n\n")
+	if events[len(events)-1] == "" {
+		events = events[:len(events)-1]
+	}
+	if len(events) != 4 {
+		t.Fatalf("%d events, want 4: %q", len(events), rec.Body)
+	}
+	for i, want := range []string{"00000040", "00c0", "ff7f"} {
+		var delta struct{ Type, Audio string }
+		decodeEvent(t, events[i], &delta)
+		audio, err := base64.StdEncoding.DecodeString(delta.Audio)
+		if delta.Type != "speech.audio.delta" || err != nil || hex.EncodeToString(audio) != want {
+			t.Errorf("event %d %q: want a speech.audio.delta with base64 %s", i, events[i], want)
+		}
+	}
+	var done struct {
+		Type  string
+		Usage map[string]int
+	}
+	decodeEvent(t, events[3], &done)
+	want := map[string]int{"input_tokens": 15, "output_tokens": 62, "total_tokens": 77}
+	if done.Type != "speech.audio.done" || !maps.Equal(done.Usage, want) {
+		t.Errorf("done event %q: want speech.audio.done with usage %v", events[3], want)
+	}
+}
+
+func TestSSEWithMP3(t *testing.T) {
+	h, eng := newServer(t)
+	eng.chunks = []kittentts.Chunk{{PCM: make([]float32, kittentts.SampleRate/2)}}
+	rec := streamSpeech(t, h, `{"model":"tts-1","input":"A.","voice":"Leo","stream_format":"sse"}`)
+	var mp3Bytes []byte
+	for _, ev := range strings.SplitAfter(strings.TrimSuffix(rec.Body.String(), "\n\n"), "\n\n") {
+		if !strings.HasSuffix(ev, "\n\n") {
+			ev += "\n\n" // the last event, trimmed above
+		}
+		var e struct{ Type, Audio string }
+		decodeEvent(t, ev, &e)
+		if e.Type == "speech.audio.delta" {
+			b, err := base64.StdEncoding.DecodeString(e.Audio)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mp3Bytes = append(mp3Bytes, b...)
+		}
+	}
+	if n := decodeMP3(t, mp3Bytes); n < kittentts.SampleRate/2 {
+		t.Errorf("the deltas decode to %d samples, want at least %d", n, kittentts.SampleRate/2)
+	}
+}
+
+func decodeEvent(t *testing.T, event string, v any) {
+	t.Helper()
+	data, ok := strings.CutPrefix(event, "data: ")
+	if !ok || !strings.HasSuffix(data, "\n\n") {
+		t.Fatalf("event %q is not one data line and a blank line", event)
+	}
+	if err := json.Unmarshal([]byte(data), v); err != nil {
+		t.Fatalf("event %q: %v", event, err)
+	}
+}
+
+func TestDisconnectStopsTheEngine(t *testing.T) {
+	h, eng := newServer(t)
+	eng.chunks = slices.Repeat([]kittentts.Chunk{{PCM: []float32{0.5}}}, 10)
+	eng.gate = make(chan struct{})
+	eng.finished = make(chan struct{})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+	defer close(eng.gate) // runs first, so a failing test can't leave the handler blocked
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, srv.URL+"/v1/audio/speech",
+		strings.NewReader(`{"model":"tts-1","input":"Hi.","voice":"Leo","response_format":"pcm"}`))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := make([]byte, 2)
+	if _, err := io.ReadFull(resp.Body, first); err != nil {
+		t.Fatalf("reading the first chunk: %v", err)
+	}
+	cancel()
+	resp.Body.Close()
+
+	// Once the server sees the disconnect, let the in-flight chunk finish.
+	select {
+	case <-eng.last(t).ctx.Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("the engine's context was not cancelled after the client disconnected")
+	}
+	eng.gate <- struct{}{}
+	select {
+	case <-eng.finished:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the stream kept going after the client disconnected")
+	}
+	if n := eng.producedCount(); n != 2 {
+		t.Errorf("the engine produced %d chunks, want 2 (the first and the in-flight one)", n)
+	}
+}
+
+func TestEngineFailureMidStream(t *testing.T) {
+	h, eng := newServer(t)
+	eng.chunks = threeChunks[:1]
+	eng.err = errors.New("onnxruntime exploded")
+	assertCutOff(t, h, `{"model":"tts-1","input":"A. B.","voice":"Leo","response_format":"pcm"}`)
+}
+
+func TestEncoderFailureMidStream(t *testing.T) {
+	// "false" stands in for an ffmpeg that dies: it exits without reading.
+	if _, err := exec.LookPath("false"); err != nil {
+		t.Skip("no false binary")
+	}
+	h, eng := newServerWithConfig(t, strings.Replace(testConfig, `ffmpeg: ""`, `ffmpeg: "false"`, 1))
+	eng.chunks = threeChunks
+	assertCutOff(t, h, `{"model":"tts-1","input":"A. B. C.","voice":"Leo","response_format":"opus"}`)
+}
+
+// assertCutOff checks that a request starts a 200 stream that is then cut
+// off rather than ending cleanly, so the client can't mistake it for
+// complete audio.
+func assertCutOff(t *testing.T, h http.Handler, body string) {
+	t.Helper()
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+	resp, err := http.Post(srv.URL+"/v1/audio/speech", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status %d, want 200 (the failure comes after the stream starts)", resp.StatusCode)
+	}
+	if _, err := io.ReadAll(resp.Body); err == nil {
+		t.Error("the body ended cleanly, want an error")
 	}
 }
 

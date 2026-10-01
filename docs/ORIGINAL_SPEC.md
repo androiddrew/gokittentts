@@ -136,7 +136,7 @@ The Go port must reproduce these steps from [`kittentts/onnx_model.py`](https://
 
 1. **Markdown pass** (gokittentts, on by default; section 6.1).
 2. **Normalize** (gokittentts, on by default; section 6.2). Python's public `KittenTTS.generate()` passes `clean_text=False`, which skips this step. With `clean_text=True`, Python runs `TextPreprocessor`, not the better `normalize_text`.
-3. **Chunk.** `chunk_text(text, max_len=400)` splits on `.`, `!` or `?` followed by whitespace or end of text. It skips abbreviations, decimals like `3.5` and `a.m.`/`p.m.`. Sentences over 400 characters are split at word boundaries. `ensure_punctuation` appends `,` to any chunk not ending in `.!?,;:`. gokittentts also splits a first chunk over 120 characters at its first comma, to meet the time-to-first-audio target (section 12). This is a recorded deviation.
+3. **Chunk.** `chunk_text(text, max_len=400)` splits on `.`, `!` or `?` followed by whitespace or end of text. It skips abbreviations, decimals like `3.5` and `a.m.`/`p.m.`. Sentences over 400 characters are split at word boundaries. `ensure_punctuation` appends `,` to any chunk not ending in `.!?,;:`. gokittentts also splits a first chunk over 120 characters at its first comma followed by whitespace (so `1,000` stays whole), to meet the time-to-first-audio target (section 12). This is a recorded deviation.
 4. **Phonemize.** Use phonemizer's `EspeakBackend(language="en-us", preserve_punctuation=True, with_stress=True)`, which produces espeak-ng IPA with stress marks.
     - Punctuation from the set `;:,.!?¡¿—…"«»“”(){}[]` is stripped before espeak and re-inserted after. **Exception:** `.` and `,` are not punctuation when they sit between two digits, so `3.5` reaches espeak whole and is read "three point five".
     - **The reference is upstream `phonemizer` ≥ 3.4.0**, the package `main` depends on. The released 0.8.1 wheel doesn't list `phonemizer`; it gets `phonemizer-fork` 3.3.2 transitively through its (unused) `misaki[en]` dependency. That fork lacks the decimal exception: on `$3.5 million, or 1,500 dollars.` it produces "θɹˈiː.fˈaɪv" and "wˈʌn,fˈaɪvhˈʌndɹɪd", where 3.4.0 produces "θɹˈiː pɔɪnt fˈaɪv" and "wˈʌn θˈaʊzənd fˈaɪvhˈʌndɹɪd" (checked 2026-09-30). gokittentts deliberately follows 3.4.0. With normalization on, digits are already words, so the difference only shows up with `normalize: false`.
@@ -387,7 +387,7 @@ func NewEngine(ortLibPath string, models []ModelConfig) (*Engine, error)
 func (e *Engine) Model(name string) (*Model, error) // loads on first use
 func (m *Model) Voices() []string
 func (m *Model) Synthesize(ctx context.Context, r Request) ([]float32, error)
-func (m *Model) Stream(ctx context.Context, r Request) iter.Seq2[[]float32, error]
+func (m *Model) Stream(ctx context.Context, r Request) iter.Seq2[Chunk, error] // Chunk{PCM, Tokens, Frames}
 func (e *Engine) Close() error
 
 const SampleRate = 24000
