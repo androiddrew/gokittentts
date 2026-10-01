@@ -2,10 +2,12 @@
 #
 # The CPU image, for linux/amd64 and linux/arm64. Build it with `make image-cpu`.
 #
-#   BAKE_MODELS  comma-separated models to bake in, pulled with the manifest's
-#                SHA-256 checks; empty gives a slim image that downloads on
-#                first use
-#   VCS_REF      the gokittentts commit the binary is built from
+#   BAKE_MODELS    comma-separated models to bake in, pulled with the
+#                  manifest's SHA-256 checks; empty gives a slim image that
+#                  downloads on first use
+#   DEFAULT_MODEL  the model for requests that name none, set as
+#                  KITTEN_DEFAULT_MODEL; empty keeps the config's (mini)
+#   VCS_REF        the gokittentts commit the binary is built from
 
 # The binary links this espeak-ng, and the phoneme goldens depend on its version.
 ARG ESPEAK_NG_VERSION=1.52.0+dfsg-5
@@ -98,6 +100,9 @@ COPY docker/config.yaml /etc/gokittentts/config.yaml
 COPY --from=build /out/gokittentts /usr/local/bin/gokittentts
 # A named volume mounted here starts as a copy of the baked models.
 COPY --from=models --chown=gokittentts:gokittentts /models /var/lib/gokittentts/models
+
+ARG DEFAULT_MODEL=
+ENV KITTEN_DEFAULT_MODEL=$DEFAULT_MODEL
 
 USER gokittentts
 EXPOSE 8880
