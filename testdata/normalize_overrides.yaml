@@ -8,539 +8,539 @@
   python: "There were three maybe four."
   expected: "There were three, maybe four."
   reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
-  approved: false
+  approved: true
 - input: "I picked 5, 6 and 7."
   python: "I picked five six and seven."
   expected: "I picked five, six and seven."
   reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
-  approved: false
+  approved: true
 - input: "Steps 1, 2, and 3 are done."
   python: "Steps one two and three are done."
   expected: "Steps one, two, and three are done."
   reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
-  approved: false
+  approved: true
 - input: "In 2024, the team grew."
   python: "In twenty twenty-four the team grew."
   expected: "In twenty twenty-four, the team grew."
   reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
-  approved: false
+  approved: true
 - input: "By 1999, the web was everywhere."
   python: "By nineteen ninety-nine the web was everywhere."
   expected: "By nineteen ninety-nine, the web was everywhere."
   reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
-  approved: false
+  approved: true
 - input: "After 10, we stopped."
   python: "After ten we stopped."
   expected: "After ten, we stopped."
   reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
-  approved: false
+  approved: true
 - input: "Sizes: 8, 10, 12."
   python: "Sizes: eight ten twelve."
   expected: "Sizes: eight, ten, twelve."
   reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
-  approved: false
+  approved: true
 - input: "The code (404), not found."
   python: "ValueError: invalid literal for int() with base 10: ''"
   expected: "The code four hundred four , not found."
   reason: "Python raises ValueError: its number pattern matches a lone comma after a non-letter and calls int(\"\"). The comma is left alone."
-  approved: false
+  approved: true
 - input: "He said \"hi\", then left."
   python: "ValueError: invalid literal for int() with base 10: ''"
   expected: "He said hi , then left."
   reason: "Python raises ValueError: its number pattern matches a lone comma after a non-letter and calls int(\"\"). The comma is left alone."
-  approved: false
+  approved: true
 - input: "Wait , what?"
   python: "ValueError: invalid literal for int() with base 10: ''"
   expected: "Wait , what?"
   reason: "Python raises ValueError: its number pattern matches a lone comma after a non-letter and calls int(\"\"). The comma is left alone."
-  approved: false
+  approved: true
 - input: "\"Yes\", she said."
   python: "ValueError: invalid literal for int() with base 10: ''"
   expected: "Yes , she said."
   reason: "Python raises ValueError: its number pattern matches a lone comma after a non-letter and calls int(\"\"). The comma is left alone."
-  approved: false
+  approved: true
 - input: "Item (a), item (b)."
   python: "ValueError: invalid literal for int() with base 10: ''"
   expected: "Item a , item b ."
   reason: "Python raises ValueError: its number pattern matches a lone comma after a non-letter and calls int(\"\"). The comma is left alone."
-  approved: false
+  approved: true
 - input: "The debt is 1,000,000,000,000,000 dollars."
   python: "The debt is dollars."
   expected: "The debt is one zero zero zero zero zero zero zero zero zero zero zero zero zero zero zero dollars."
   reason: "Python drops the digits above the trillions, so long numbers are misread or deleted. A number over 15 digits is read digit by digit."
-  approved: false
+  approved: true
 - input: "Avogadro's number is about 602214076000000000000000."
   python: "Avogadro s number is about ."
   expected: "Avogadro s number is about six zero two two one four zero seven six zero zero zero zero zero zero zero zero zero zero zero zero zero zero zero."
   reason: "Python drops the digits above the trillions, so long numbers are misread or deleted. A number over 15 digits is read digit by digit."
-  approved: false
+  approved: true
 - input: "That serial is 12345678901234567890."
   python: "That serial is six hundred seventy-eight trillion nine hundred one billion two hundred thirty-four million five hundred sixty-seven thousand eight hundred ninety."
   expected: "That serial is one two three four five six seven eight nine zero one two three four five six seven eight nine zero."
   reason: "Python drops the digits above the trillions, so long numbers are misread or deleted. A number over 15 digits is read digit by digit."
-  approved: false
+  approved: true
 - input: "It is our 20th year."
   python: "It is our twentyth year."
   expected: "It is our twentieth year."
   reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\")."
-  approved: false
+  approved: true
 - input: "The 30th reunion was fun."
   python: "The thirtyth reunion was fun."
   expected: "The thirtieth reunion was fun."
   reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\")."
-  approved: false
+  approved: true
 - input: "The 40th, 50th and 60th games."
   python: "The fortyth, fiftyth and sixtyth games."
   expected: "The fortieth, fiftieth and sixtieth games."
   reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\")."
-  approved: false
+  approved: true
 - input: "The 90th minute."
   python: "The ninetyth minute."
   expected: "The ninetieth minute."
   reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\")."
-  approved: false
+  approved: true
 - input: "Apr. 30, 1999 was the last day."
   python: "April thirtyth, nineteen ninety-nine was the last day."
   expected: "April thirtieth, nineteen ninety-nine was the last day."
   reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\")."
-  approved: false
+  approved: true
 - input: "Jul. 20, 1969 was the moon landing."
   python: "July twentyth, nineteen sixty-nine was the moon landing."
   expected: "July twentieth, nineteen sixty-nine was the moon landing."
   reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\")."
-  approved: false
+  approved: true
 - input: "Sep 30, 2019"
   python: "September thirtyth, twenty nineteen"
   expected: "September thirtieth, twenty nineteen"
   reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\")."
-  approved: false
+  approved: true
 - input: "The call is at 10:00 tomorrow."
   python: "The call is at tentomorrow."
   expected: "The call is at ten tomorrow."
   reason: "Python takes the spaces after a time with no am or pm, joining it to the next word (\"threetoday\"). The spaces stay."
-  approved: false
+  approved: true
 - input: "We arrive at 3:00 today."
   python: "We arrive at threetoday."
   expected: "We arrive at three today."
   reason: "Python takes the spaces after a time with no am or pm, joining it to the next word (\"threetoday\"). The spaces stay."
-  approved: false
+  approved: true
 - input: "Scores were 21:14 at halftime."
   python: "Scores were twenty-one fourteenat halftime."
   expected: "Scores were twenty-one fourteen at halftime."
   reason: "Python takes the spaces after a time with no am or pm, joining it to the next word (\"threetoday\"). The spaces stay."
-  approved: false
+  approved: true
 - input: "The Apollo 11 mission landed on July 20, 1969 at 20:17 UTC."
   python: "The Apollo eleven mission landed on July twentyth, nineteen sixty-nine at twenty seventeenUTC."
   expected: "The Apollo eleven mission landed on July twentieth, nineteen sixty-nine at twenty seventeen UTC."
   reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\"). Python takes the spaces after a time with no am or pm, joining it to the next word (\"threetoday\"). The spaces stay."
-  approved: false
+  approved: true
 - input: "Run the job every 15 minutes between 9:00 and 17:00."
   python: "Run the job every fifteen minutes between nineand seventeen."
   expected: "Run the job every fifteen minutes between nine and seventeen."
   reason: "Python takes the spaces after a time with no am or pm, joining it to the next word (\"threetoday\"). The spaces stay."
-  approved: false
+  approved: true
 - input: "The score was 3-1 at the 90th minute."
   python: "The score was three to one at the ninetyth minute."
   expected: "The score was three to one at the ninetieth minute."
   reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\")."
-  approved: false
+  approved: true
 - input: "The answer, 42, was unexpected."
   python: "The answer, forty-two was unexpected."
   expected: "The answer, forty-two, was unexpected."
   reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
-  approved: false
+  approved: true
 - input: "At 3:05 ammo."
   python: "At three oh fiveammo."
   expected: "At three oh five ammo."
   reason: "Python takes the spaces after a time with no am or pm, joining it to the next word (\"threetoday\"). The spaces stay."
-  approved: false
+  approved: true
 - input: "May 5, 20261 is not a date."
   python: "May five twenty thousand two hundred sixty-one is not a date."
   expected: "May five, twenty thousand two hundred sixty-one is not a date."
   reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
-  approved: false
+  approved: true
 - input: "Mayday 5, 2020 is not a date."
   python: "Mayday five twenty twenty is not a date."
   expected: "Mayday five, twenty twenty is not a date."
   reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
-  approved: false
+  approved: true
 - input: "XMay 5, 2020 again."
   python: "XMay five twenty twenty again."
   expected: "XMay five, twenty twenty again."
   reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
-  approved: false
+  approved: true
 - input: "Coordinates -5,-6 here."
   python: "Coordinates negative fivenegative six here."
   expected: "Coordinates negative five,negative six here."
   reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
-  approved: false
+  approved: true
 - input: "Arabic time ٣:٣٠ here."
   python: "Arabic time three thirtyhere."
   expected: "Arabic time three thirty here."
   reason: "Python takes the spaces after a time with no am or pm, joining it to the next word (\"threetoday\"). The spaces stay."
-  approved: false
+  approved: true
 - input: "The ſept 5, 2020 launch."
   python: "KeyError: 'ſept'"
   expected: "The September fifth, twenty twenty launch."
   reason: "Python's month pattern matches \"ſept\" case-insensitively but its lower() doesn't fold the long s, so the month lookup raises KeyError. The month is looked up case-folded."
-  approved: false
+  approved: true
 - input: "The 1000000000000000000th try."
   python: "The th try."
   expected: "The one zero zero zero zero zero zero zero zero zero zero zero zero zero zero zero zero zero zeroth try."
   reason: "Python drops the digits above the trillions, so long numbers are misread or deleted. A number over 15 digits is read digit by digit."
-  approved: false
+  approved: true
 - input: "We raised $3.5 million."
   python: "We raised three dollars and fifty cents million."
   expected: "We raised three point five million dollars."
   reason: "Python reads an amount followed by a scale word as \"three dollars and fifty cents million\". The scale word goes before the unit: \"three point five million dollars\"."
-  approved: false
+  approved: true
 - input: "The budget was $3.5 million."
   python: "The budget was three dollars and fifty cents million."
   expected: "The budget was three point five million dollars."
   reason: "Python reads an amount followed by a scale word as \"three dollars and fifty cents million\". The scale word goes before the unit: \"three point five million dollars\"."
-  approved: false
+  approved: true
 - input: "A coffee is ¥500."
   python: "A coffee is five hundred yens."
   expected: "A coffee is five hundred yen."
   reason: "Python adds an \"s\" to yen and won. They are invariant."
-  approved: false
+  approved: true
 - input: "3 GB"
   python: "three GB"
   expected: "three gigabytes"
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "It has 16 GB of memory."
   python: "It has sixteen GB of memory."
   expected: "It has sixteen gigabytes of memory."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "The file is 500 MB."
   python: "The file is five hundred MB."
   expected: "The file is five hundred megabytes."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "Drive 60 mph."
   python: "Drive sixty mph."
   expected: "Drive sixty miles per hour."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "It is 25 °C outside."
   python: "It is twenty-five C outside."
   expected: "It is twenty-five degrees Celsius outside."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "The CPU runs at 3.5 GHz."
   python: "The CPU runs at three point five GHz."
   expected: "The CPU runs at three point five gigahertz."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "Latency was 20 ms."
   python: "Latency was twenty Ms"
   expected: "Latency was twenty milliseconds."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "The bag weighs 5 kg."
   python: "The bag weighs five kg."
   expected: "The bag weighs five kilograms."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "It is 10 km away."
   python: "It is ten km away."
   expected: "It is ten kilometers away."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "Take 200 mg twice a day."
   python: "Take two hundred mg twice a day."
   expected: "Take two hundred milligrams twice a day."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "Add 250 ml of water."
   python: "Add two hundred fifty ml of water."
   expected: "Add two hundred fifty milliliters of water."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "The model has 7B parameters."
   python: "The model has sevenB parameters."
   expected: "The model has seven billion parameters."
   reason: "Python leaves a scale letter after a number as written (\"sevenB\"). It is read as the scale word, ported from TextPreprocessor's expand_scale_suffixes."
-  approved: false
+  approved: true
 - input: "We served 10K users."
   python: "We served tenK users."
   expected: "We served ten thousand users."
   reason: "Python leaves a scale letter after a number as written (\"sevenB\"). It is read as the scale word, ported from TextPreprocessor's expand_scale_suffixes."
-  approved: false
+  approved: true
 - input: "Non-breaking 5 kg."
   python: "Non-breaking five kg."
   expected: "Non-breaking five kilograms."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "In 2023, revenue grew 15% to $4.2 billion, up from $3.6 billion in 2022."
   python: "In twenty twenty-three revenue grew fifteen percent to four dollars and twenty cents billion, up from three dollars and sixty cents billion in twenty twenty-two."
   expected: "In twenty twenty-three, revenue grew fifteen percent to four point two billion dollars, up from three point six billion dollars in twenty twenty-two."
   reason: "Python reads an amount followed by a scale word as \"three dollars and fifty cents million\". The scale word goes before the unit: \"three point five million dollars\". Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
-  approved: false
+  approved: true
 - input: "$1.50 each."
   python: "one dollars and fifty cents each."
   expected: "one dollar and fifty cents each."
   reason: "Python says \"one dollars\" when there are cents. One whole unit is singular."
-  approved: false
+  approved: true
 - input: "Pay $1,000, then leave."
   python: "Pay one thousand dollars then leave."
   expected: "Pay one thousand dollars, then leave."
   reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
-  approved: false
+  approved: true
 - input: "We need $2 billion."
   python: "We need two dollars billion."
   expected: "We need two billion dollars."
   reason: "Python reads an amount followed by a scale word as \"three dollars and fifty cents million\". The scale word goes before the unit: \"three point five million dollars\"."
-  approved: false
+  approved: true
 - input: "It costs $3.5 Million."
   python: "It costs three dollars and fifty cents Million."
   expected: "It costs three point five million dollars."
   reason: "Python reads an amount followed by a scale word as \"three dollars and fifty cents million\". The scale word goes before the unit: \"three point five million dollars\"."
-  approved: false
+  approved: true
 - input: "Raise $10 thousand now."
   python: "Raise ten dollars thousand now."
   expected: "Raise ten thousand dollars now."
   reason: "Python reads an amount followed by a scale word as \"three dollars and fifty cents million\". The scale word goes before the unit: \"three point five million dollars\"."
-  approved: false
+  approved: true
 - input: "The ₩5000 note."
   python: "The five thousand wons note."
   expected: "The five thousand won note."
   reason: "Python adds an \"s\" to yen and won. They are invariant."
-  approved: false
+  approved: true
 - input: "Price: $1.01."
   python: "Price: one dollars and one cent."
   expected: "Price: one dollar and one cent."
   reason: "Python says \"one dollars\" when there are cents. One whole unit is singular."
-  approved: false
+  approved: true
 - input: "A $, sign."
   python: "ValueError: invalid literal for int() with base 10: ''"
   expected: "A , sign."
   reason: "Python raises ValueError on a currency symbol with only commas after it. It is left alone."
-  approved: false
+  approved: true
 - input: "Down 0.00001% only."
   python: "ValueError: invalid literal for int() with base 10: '1e-05'"
   expected: "Down zero point zero zero zero zero one percent only."
   reason: "Python reads a percent through float(), and raises ValueError when the float prints in exponent form. The decimal is read as written."
-  approved: false
+  approved: true
 - input: "GPT-4."
   python: "ValueError: invalid literal for int() with base 10: ''"
   expected: "GPT four."
   reason: "Python raises ValueError on a model version ending in or doubling a dot (\"GPT-4.\" at the end of a sentence). The digits-and-dots version is read and the rest stays."
-  approved: false
+  approved: true
 - input: "I love GPT-4. It is great."
   python: "ValueError: invalid literal for int() with base 10: ''"
   expected: "I love GPT four. It is great."
   reason: "Python raises ValueError on a model version ending in or doubling a dot (\"GPT-4.\" at the end of a sentence). The digits-and-dots version is read and the rest stays."
-  approved: false
+  approved: true
 - input: "Use gpt-3.5. Then stop."
   python: "ValueError: invalid literal for int() with base 10: ''"
   expected: "Use gpt three point five. Then stop."
   reason: "Python raises ValueError on a model version ending in or doubling a dot (\"GPT-4.\" at the end of a sentence). The digits-and-dots version is read and the rest stays."
-  approved: false
+  approved: true
 - input: "Model-3..5 is odd."
   python: "ValueError: invalid literal for int() with base 10: ''"
   expected: "Model three..five is odd."
   reason: "Python raises ValueError on a model version ending in or doubling a dot (\"GPT-4.\" at the end of a sentence). The digits-and-dots version is read and the rest stays."
-  approved: false
+  approved: true
 - input: "1 km is short."
   python: "one km is short."
   expected: "one kilometer is short."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "It is 100km away."
   python: "It is one hundredkm away."
   expected: "It is one hundred kilometers away."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "It weighs 50kg."
   python: "It weighs fiftykg."
   expected: "It weighs fifty kilograms."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "Set 25°C please."
   python: "Set twenty-five C please."
   expected: "Set twenty-five degrees Celsius please."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "Set 25 °F please."
   python: "Set twenty-five F please."
   expected: "Set twenty-five degrees Fahrenheit please."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "Use 5GB of space."
   python: "Use fiveGB of space."
   expected: "Use five gigabytes of space."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "1.5 TB of disk."
   python: "one point five TB of disk."
   expected: "one point five terabytes of disk."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "Plays at 44.1 kHz."
   python: "Plays at forty-four point one kHz."
   expected: "Plays at forty-four point one kilohertz."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "A 2.4GHz band."
   python: "A two point fourGHz band."
   expected: "A two point four gigahertz band."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "Wait 5 ns now."
   python: "Wait five ns now."
   expected: "Wait five nanoseconds now."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "Wait 3 µs now."
   python: "Wait three µs now."
   expected: "Wait three microseconds now."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "Runs 5-10 km a day."
   python: "Runs five to ten km a day."
   expected: "Runs five to ten kilometers a day."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "Delay of 1 ms only."
   python: "Delay of one ms only."
   expected: "Delay of one millisecond only."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "Speed 1 mph."
   python: "Speed one mph."
   expected: "Speed one mile per hour."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "Temp 25C° today."
   python: "Temp twenty-fiveC today."
   expected: "Temp twenty-five degrees Celsius today."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "The 340M model."
   python: "The three hundred fortyM model."
   expected: "The three hundred forty million model."
   reason: "Python leaves a scale letter after a number as written (\"sevenB\"). It is read as the scale word, ported from TextPreprocessor's expand_scale_suffixes."
-  approved: false
+  approved: true
 - input: "A 1.5K salary."
   python: "A one point fiveK salary."
   expected: "A one point five thousand salary."
   reason: "Python leaves a scale letter after a number as written (\"sevenB\"). It is read as the scale word, ported from TextPreprocessor's expand_scale_suffixes."
-  approved: false
+  approved: true
 - input: "About 2T tokens."
   python: "About twoT tokens."
   expected: "About two trillion tokens."
   reason: "Python leaves a scale letter after a number as written (\"sevenB\"). It is read as the scale word, ported from TextPreprocessor's expand_scale_suffixes."
-  approved: false
+  approved: true
 - input: "A 4K screen."
   python: "A fourK screen."
   expected: "A four thousand screen."
   reason: "Python leaves a scale letter after a number as written (\"sevenB\"). It is read as the scale word, ported from TextPreprocessor's expand_scale_suffixes."
-  approved: false
+  approved: true
 - input: "Plan 9B is weird."
   python: "Plan nineB is weird."
   expected: "Plan nine billion is weird."
   reason: "Python leaves a scale letter after a number as written (\"sevenB\"). It is read as the scale word, ported from TextPreprocessor's expand_scale_suffixes."
-  approved: false
+  approved: true
 - input: "Up 12345678901234567.5% today."
   python: "ValueError: invalid literal for int() with base 10: 'e'"
   expected: "Up one two three four five six seven eight nine zero one two three four five six seven point five percent today."
   reason: "Python reads a percent through float(), and raises ValueError when the float prints in exponent form. The decimal is read as written."
-  approved: false
+  approved: true
 - input: "x-5% here."
   python: "xnegative five percent here."
   expected: "x-five percent here."
   reason: "Python's percent pattern takes a minus after a word character as a sign (\"5-10%\" is \"fivenegative ten percent\"). It stays a hyphen."
-  approved: false
+  approved: true
 - input: "Get 5-10% off."
   python: "Get fivenegative ten percent off."
   expected: "Get five-ten percent off."
   reason: "Python's percent pattern takes a minus after a word character as a sign (\"5-10%\" is \"fivenegative ten percent\"). It stays a hyphen."
-  approved: false
+  approved: true
 - input: "Only 01 km left."
   python: "Only one km left."
   expected: "Only one kilometer left."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
-  approved: false
+  approved: true
 - input: "Smith et al. 2024, pp. 31-35"
   python: "Smith et al twenty twenty-four pages thirty-one to thirty-five"
   expected: "Smith et al twenty twenty-four, pages thirty-one to thirty-five"
   reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
-  approved: false
+  approved: true
 - input: "See www.example.org for details."
   python: "See w w w d o t e x a m p l e dot o r g for details."
   expected: "See w w w dot e x a m p l e dot o r g for details."
   reason: "Python spells its own \"www dot\" as \"w w w d o t\". It is \"w w w dot\"."
-  approved: false
+  approved: true
 - input: "The repo is at https://github.com/KittenML/KittenTTS."
   python: "The repo is at g i t h u b dot c o m slash k i t t e n m l slash k i t t e n t t s dot"
   expected: "The repo is at g i t h u b dot c o m slash k i t t e n m l slash k i t t e n t t s."
   reason: "Python spells the punctuation ending a URL (\"... c o m dot\"), so the sentence or clause loses its ending. It stays in the text; closing brackets and quotes there are dropped."
-  approved: false
+  approved: true
 - input: "See (https://example.com)."
   python: "See e x a m p l e dot c o m dot"
   expected: "See e x a m p l e dot c o m."
   reason: "Python spells the punctuation ending a URL (\"... c o m dot\"), so the sentence or clause loses its ending. It stays in the text; closing brackets and quotes there are dropped."
-  approved: false
+  approved: true
 - input: "Visit https://example.com, then go."
   python: "Visit e x a m p l e dot c o m then go."
   expected: "Visit e x a m p l e dot c o m, then go."
   reason: "Python spells the punctuation ending a URL (\"... c o m dot\"), so the sentence or clause loses its ending. It stays in the text; closing brackets and quotes there are dropped."
-  approved: false
+  approved: true
 - input: "Visit HTTPS://EXAMPLE.COM now."
   python: "Visit HTTPS: EXAMPLE.COM now."
   expected: "Visit e x a m p l e dot c o m now."
   reason: "Python matches URLs case-sensitively, so \"HTTPS://EXAMPLE.COM\" is read as \"HTTPS: EXAMPLE.COM\". URLs match case-insensitively."
-  approved: false
+  approved: true
 - input: "Go to https://x.com/٣ now."
   python: "KeyError: '٣'"
   expected: "Go to x dot c o m slash three now."
   reason: "Python raises KeyError spelling a non-ASCII digit in a URL. The digit is read."
-  approved: false
+  approved: true
 - input: "Try www.Example.com/a_b now."
   python: "Try w w w d o t e x a m p l e dot c o m slash a underscore b now."
   expected: "Try w w w dot e x a m p l e dot c o m slash a underscore b now."
   reason: "Python spells its own \"www dot\" as \"w w w d o t\". It is \"w w w dot\"."
-  approved: false
+  approved: true
 - input: "Mail a@b.co.uk now."
   python: "Mail a at b dot c o.uk now."
   expected: "Mail a at b dot c o dot u k now."
   reason: "Python's email pattern stops at the domain's first dot (\"a at b dot c o.uk\"). A domain can have several dots."
-  approved: false
+  approved: true
 - input: "Write to first.last+tag@sub-domain.example.org today."
   python: "Write to f i r s t dot l a s t t a g at s u b dash d o m a i n dot e x a m p l e.org today."
   expected: "Write to f i r s t dot l a s t t a g at s u b dash d o m a i n dot e x a m p l e dot o r g today."
   reason: "Python's email pattern stops at the domain's first dot (\"a at b dot c o.uk\"). A domain can have several dots."
-  approved: false
+  approved: true
 - input: "Meet at 5 p.m. today."
   python: "Meet at five pagem. today."
   expected: "Meet at five p.m. today."
   reason: "Python reads the \"p.\" of \"p.m.\" as the title \"page\" (\"five pagem.\"). \"p.m.\" is left alone."
-  approved: false
+  approved: true
 - input: "At 5 P.M. sharp."
   python: "At five pageM. sharp."
   expected: "At five P.M. sharp."
   reason: "Python reads the \"p.\" of \"p.m.\" as the title \"page\" (\"five pagem.\"). \"p.m.\" is left alone."
-  approved: false
+  approved: true
 - input: "Use 3 < 5 and 6 > 2."
   python: "Use three two."
   expected: "Use three five and six two."
   reason: "Python's HTML pattern takes \"< 5 and 6 >\" for a tag and deletes it. A tag needs a name after \"<\"."
-  approved: false
+  approved: true
 - input: "Meet at 5 p.m, ok."
   python: "Meet at five pagem, ok."
   expected: "Meet at five p.m, ok."
   reason: "Python reads the \"p.\" of \"p.m.\" as the title \"page\" (\"five pagem.\"). \"p.m.\" is left alone."
-  approved: false
+  approved: true
 - input: "Go to WWW.EXAMPLE.COM now."
   python: "Go to WWW.EXAMPLE.COM now."
   expected: "Go to w w w dot e x a m p l e dot c o m now."
   reason: "Python matches URLs case-sensitively, so \"HTTPS://EXAMPLE.COM\" is read as \"HTTPS: EXAMPLE.COM\". URLs match case-insensitively."
-  approved: false
+  approved: true
 - input: "Have you seen https://a.com/x?"
   python: "Have you seen a dot c o m slash x question mark"
   expected: "Have you seen a dot c o m slash x?"
   reason: "Python spells the punctuation ending a URL (\"... c o m dot\"), so the sentence or clause loses its ending. It stays in the text; closing brackets and quotes there are dropped."
-  approved: false
+  approved: true

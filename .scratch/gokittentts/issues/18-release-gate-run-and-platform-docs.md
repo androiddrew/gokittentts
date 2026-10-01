@@ -4,7 +4,7 @@
 
 **Blocked by:** 15 (CPU Docker image), 16 (CUDA images), 17 (`bench` subcommand)
 
-**Status:** ready-for-human
+**Status:** resolved
 
 - [ ] Pi 5 with nano-fp32: RTF < 0.8 and first audio < 1 s, recorded
 - [ ] x86_64 with mini: RTF < 0.8 and first audio < 1 s, recorded
@@ -45,3 +45,5 @@
     - Single sentences: Go is 5–20% faster.
     - Multi-sentence texts: Go is 2–6× faster, from the short-first-chunk rule. Examples: the bread recipe at 0.88 s against 5.32 s, and the meeting notice at 1.14 s against 4.85 s.
 - **Noise:** an earlier, unrecorded Python run had RTF p95 0.866, so RTF p95 varies run to run by about ±0.1 here.
+
+**2026-10-01, closed (owner).** Closed with the Pi 5 run still to do. That box stays unticked until a Pi 5 record is in `bench/v0.1.0/`; the command is in README "Bench > Raspberry Pi 5". The x86_64 mini miss is accepted for v0.1.0 (see above). The CUDA records, the platform docs and the Python reference comparison are done.
