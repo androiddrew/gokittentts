@@ -43,7 +43,8 @@ third_party/onnxruntime-linux-$(ORT_ARCH)-%/VERSION_NUMBER:
 $(MODELS_DIR)/%/current/config.json:
 	go run ./cmd/gokittentts pull --dir $(MODELS_DIR) $*
 
-# Regenerate testdata/golden.json from the Python reference.
+# Regenerate testdata/golden.json and testdata/normalize_golden.json from the
+# Python reference.
 golden:
 	$(GOLDEN_PY) python3 scripts/make_golden.py
 

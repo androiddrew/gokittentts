@@ -62,3 +62,12 @@ def test_golden_keeps_words_after_a_decimal_in_a_chunk_ending_in_a_period(tmp_pa
     golden = generate(tmp_path)
     [g] = [g for g in golden if "2.718." in g["chunk"]]
     assert g["phonemes"].endswith("tˈuː pɔɪnt sˈɛvən wˈʌn ˈeɪt. "), g["phonemes"]
+
+
+def test_normalizer_golden_reads_years_and_records_errors(tmp_path):
+    generate(tmp_path)
+    golden = json.loads((tmp_path / "normalize_golden.json").read_text())
+    by_input = {g["input"]: g for g in golden}
+    assert by_input["2024 budget"]["output"] == "twenty twenty-four budget"
+    assert by_input["Wait , what?"]["error"].startswith("ValueError")
+    assert not any(g["input"].startswith("//") for g in golden)

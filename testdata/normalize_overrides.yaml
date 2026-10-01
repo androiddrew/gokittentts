@@ -1,0 +1,191 @@
+# Deliberate differences between the Go normalizer and Python's normalize_text.
+# A corpus input listed here must normalize to `expected`; `python` is what
+# normalize_golden.json records (its output, or the error it raised). Every
+# entry is reviewed once at the end of the project (issue 19), which sets
+# `approved: true` or removes the entry and reverts the Go behavior.
+
+- input: "There were 3, maybe 4."
+  python: "There were three maybe four."
+  expected: "There were three, maybe four."
+  reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
+  approved: false
+- input: "I picked 5, 6 and 7."
+  python: "I picked five six and seven."
+  expected: "I picked five, six and seven."
+  reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
+  approved: false
+- input: "Steps 1, 2, and 3 are done."
+  python: "Steps one two and three are done."
+  expected: "Steps one, two, and three are done."
+  reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
+  approved: false
+- input: "In 2024, the team grew."
+  python: "In twenty twenty-four the team grew."
+  expected: "In twenty twenty-four, the team grew."
+  reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
+  approved: false
+- input: "By 1999, the web was everywhere."
+  python: "By nineteen ninety-nine the web was everywhere."
+  expected: "By nineteen ninety-nine, the web was everywhere."
+  reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
+  approved: false
+- input: "After 10, we stopped."
+  python: "After ten we stopped."
+  expected: "After ten, we stopped."
+  reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
+  approved: false
+- input: "Sizes: 8, 10, 12."
+  python: "Sizes: eight ten twelve."
+  expected: "Sizes: eight, ten, twelve."
+  reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
+  approved: false
+- input: "The code (404), not found."
+  python: "ValueError: invalid literal for int() with base 10: ''"
+  expected: "The code four hundred four , not found."
+  reason: "Python raises ValueError: its number pattern matches a lone comma after a non-letter and calls int(\"\"). The comma is left alone."
+  approved: false
+- input: "He said \"hi\", then left."
+  python: "ValueError: invalid literal for int() with base 10: ''"
+  expected: "He said hi , then left."
+  reason: "Python raises ValueError: its number pattern matches a lone comma after a non-letter and calls int(\"\"). The comma is left alone."
+  approved: false
+- input: "Wait , what?"
+  python: "ValueError: invalid literal for int() with base 10: ''"
+  expected: "Wait , what?"
+  reason: "Python raises ValueError: its number pattern matches a lone comma after a non-letter and calls int(\"\"). The comma is left alone."
+  approved: false
+- input: "\"Yes\", she said."
+  python: "ValueError: invalid literal for int() with base 10: ''"
+  expected: "Yes , she said."
+  reason: "Python raises ValueError: its number pattern matches a lone comma after a non-letter and calls int(\"\"). The comma is left alone."
+  approved: false
+- input: "Item (a), item (b)."
+  python: "ValueError: invalid literal for int() with base 10: ''"
+  expected: "Item a , item b ."
+  reason: "Python raises ValueError: its number pattern matches a lone comma after a non-letter and calls int(\"\"). The comma is left alone."
+  approved: false
+- input: "The debt is 1,000,000,000,000,000 dollars."
+  python: "The debt is dollars."
+  expected: "The debt is one zero zero zero zero zero zero zero zero zero zero zero zero zero zero zero dollars."
+  reason: "Python drops the digits above the trillions, so long numbers are misread or deleted. A number over 15 digits is read digit by digit."
+  approved: false
+- input: "Avogadro's number is about 602214076000000000000000."
+  python: "Avogadro s number is about ."
+  expected: "Avogadro s number is about six zero two two one four zero seven six zero zero zero zero zero zero zero zero zero zero zero zero zero zero zero."
+  reason: "Python drops the digits above the trillions, so long numbers are misread or deleted. A number over 15 digits is read digit by digit."
+  approved: false
+- input: "That serial is 12345678901234567890."
+  python: "That serial is six hundred seventy-eight trillion nine hundred one billion two hundred thirty-four million five hundred sixty-seven thousand eight hundred ninety."
+  expected: "That serial is one two three four five six seven eight nine zero one two three four five six seven eight nine zero."
+  reason: "Python drops the digits above the trillions, so long numbers are misread or deleted. A number over 15 digits is read digit by digit."
+  approved: false
+- input: "It is our 20th year."
+  python: "It is our twentyth year."
+  expected: "It is our twentieth year."
+  reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\")."
+  approved: false
+- input: "The 30th reunion was fun."
+  python: "The thirtyth reunion was fun."
+  expected: "The thirtieth reunion was fun."
+  reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\")."
+  approved: false
+- input: "The 40th, 50th and 60th games."
+  python: "The fortyth, fiftyth and sixtyth games."
+  expected: "The fortieth, fiftieth and sixtieth games."
+  reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\")."
+  approved: false
+- input: "The 90th minute."
+  python: "The ninetyth minute."
+  expected: "The ninetieth minute."
+  reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\")."
+  approved: false
+- input: "Apr. 30, 1999 was the last day."
+  python: "April thirtyth, nineteen ninety-nine was the last day."
+  expected: "April thirtieth, nineteen ninety-nine was the last day."
+  reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\")."
+  approved: false
+- input: "Jul. 20, 1969 was the moon landing."
+  python: "July twentyth, nineteen sixty-nine was the moon landing."
+  expected: "July twentieth, nineteen sixty-nine was the moon landing."
+  reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\")."
+  approved: false
+- input: "Sep 30, 2019"
+  python: "September thirtyth, twenty nineteen"
+  expected: "September thirtieth, twenty nineteen"
+  reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\")."
+  approved: false
+- input: "The call is at 10:00 tomorrow."
+  python: "The call is at tentomorrow."
+  expected: "The call is at ten tomorrow."
+  reason: "Python takes the spaces after a time with no am or pm, joining it to the next word (\"threetoday\"). The spaces stay."
+  approved: false
+- input: "We arrive at 3:00 today."
+  python: "We arrive at threetoday."
+  expected: "We arrive at three today."
+  reason: "Python takes the spaces after a time with no am or pm, joining it to the next word (\"threetoday\"). The spaces stay."
+  approved: false
+- input: "Scores were 21:14 at halftime."
+  python: "Scores were twenty-one fourteenat halftime."
+  expected: "Scores were twenty-one fourteen at halftime."
+  reason: "Python takes the spaces after a time with no am or pm, joining it to the next word (\"threetoday\"). The spaces stay."
+  approved: false
+- input: "The Apollo 11 mission landed on July 20, 1969 at 20:17 UTC."
+  python: "The Apollo eleven mission landed on July twentyth, nineteen sixty-nine at twenty seventeenUTC."
+  expected: "The Apollo eleven mission landed on July twentieth, nineteen sixty-nine at twenty seventeen UTC."
+  reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\"). Python takes the spaces after a time with no am or pm, joining it to the next word (\"threetoday\"). The spaces stay."
+  approved: false
+- input: "Run the job every 15 minutes between 9:00 and 17:00."
+  python: "Run the job every fifteen minutes between nineand seventeen."
+  expected: "Run the job every fifteen minutes between nine and seventeen."
+  reason: "Python takes the spaces after a time with no am or pm, joining it to the next word (\"threetoday\"). The spaces stay."
+  approved: false
+- input: "The score was 3-1 at the 90th minute."
+  python: "The score was three to one at the ninetyth minute."
+  expected: "The score was three to one at the ninetieth minute."
+  reason: "Python makes ordinals of the tens \"-yth\" (\"twentyth\"). They end in \"-ieth\" (\"twentieth\")."
+  approved: false
+- input: "The answer, 42, was unexpected."
+  python: "The answer, forty-two was unexpected."
+  expected: "The answer, forty-two, was unexpected."
+  reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
+  approved: false
+- input: "At 3:05 ammo."
+  python: "At three oh fiveammo."
+  expected: "At three oh five ammo."
+  reason: "Python takes the spaces after a time with no am or pm, joining it to the next word (\"threetoday\"). The spaces stay."
+  approved: false
+- input: "May 5, 20261 is not a date."
+  python: "May five twenty thousand two hundred sixty-one is not a date."
+  expected: "May five, twenty thousand two hundred sixty-one is not a date."
+  reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
+  approved: false
+- input: "Mayday 5, 2020 is not a date."
+  python: "Mayday five twenty twenty is not a date."
+  expected: "Mayday five, twenty twenty is not a date."
+  reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
+  approved: false
+- input: "XMay 5, 2020 again."
+  python: "XMay five twenty twenty again."
+  expected: "XMay five, twenty twenty again."
+  reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
+  approved: false
+- input: "Coordinates -5,-6 here."
+  python: "Coordinates negative fivenegative six here."
+  expected: "Coordinates negative five,negative six here."
+  reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
+  approved: false
+- input: "Arabic time ٣:٣٠ here."
+  python: "Arabic time three thirtyhere."
+  expected: "Arabic time three thirty here."
+  reason: "Python takes the spaces after a time with no am or pm, joining it to the next word (\"threetoday\"). The spaces stay."
+  approved: false
+- input: "The ſept 5, 2020 launch."
+  python: "KeyError: 'ſept'"
+  expected: "The September fifth, twenty twenty launch."
+  reason: "Python's month pattern matches \"ſept\" case-insensitively but its lower() doesn't fold the long s, so the month lookup raises KeyError. The month is looked up case-folded."
+  approved: false
+- input: "The 1000000000000000000th try."
+  python: "The th try."
+  expected: "The one zero zero zero zero zero zero zero zero zero zero zero zero zero zero zero zero zero zeroth try."
+  reason: "Python drops the digits above the trillions, so long numbers are misread or deleted. A number over 15 digits is read digit by digit."
+  approved: false

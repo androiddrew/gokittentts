@@ -1,7 +1,10 @@
 """Golden phoneme and token-id vectors from the KittenTTS Python reference.
 
-Run through `make golden`, which writes testdata/golden.json. An optional
-argument writes somewhere else. See docs/ORIGINAL_SPEC.md Appendix A.
+Run through `make golden`, which writes testdata/golden.json and, from
+testdata/normalize_corpus.txt, testdata/normalize_golden.json: Python's
+normalize_text output for each corpus input. An optional argument writes
+golden.json somewhere else, with normalize_golden.json beside it. See
+docs/ORIGINAL_SPEC.md Appendix A.
 
 onnx_model_ref.py and preprocess_ref.py are KittenTTS's kittentts/onnx_model.py
 and kittentts/preprocess.py (Apache-2.0), pinned by `make reference`.
@@ -79,4 +82,20 @@ for line in open(repo / "testdata" / "sentences.txt", encoding="utf-8"):
                     "phonemizer": md.version("phonemizer")})
 with open(out_path, "w", encoding="utf-8") as f:
     json.dump(out, f, ensure_ascii=False, indent=1)
+    f.write("\n")
+
+# normalize_text raises on some inputs (a lone "," after a non-letter reaches
+# int(""), and "ſept" misses the month table); the golden records the error
+# so the override can name it.
+norm = []
+for line in open(repo / "testdata" / "normalize_corpus.txt", encoding="utf-8"):
+    line = line.rstrip("\n")
+    if not line.strip() or line.startswith("//"):
+        continue
+    try:
+        norm.append({"input": line, "output": pp.normalize_text(line)})
+    except (ValueError, KeyError) as e:
+        norm.append({"input": line, "error": f"{type(e).__name__}: {e}"})
+with open(out_path.parent / "normalize_golden.json", "w", encoding="utf-8") as f:
+    json.dump(norm, f, ensure_ascii=False, indent=1)
     f.write("\n")

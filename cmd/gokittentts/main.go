@@ -210,10 +210,11 @@ func say(args []string) error {
 	ortLib := fs.String("onnxruntime-lib", "", "path to the versioned ONNX Runtime library, libonnxruntime.so.1.29.1 (required)")
 	modelsDir := fs.String("models-dir", "models", "models directory; a missing pinned model is downloaded into it")
 	model := fs.String("model", "kitten-tts-mini-0.8", "model name")
-	voice := fs.String("voice", "Leo", "Kitten voice name (Bella, Bruno, …) or expr-voice-* key")
+	voice := fs.String("voice", "Bruno", "Kitten voice name (Bella, Bruno, …) or expr-voice-* key")
 	speed := fs.Float64("speed", 1, "speaking speed, 0.5 to 2.0")
 	out := fs.String("out", "out.wav", "WAV file to write")
 	md := fs.Bool("markdown", true, "read markdown as prose; --markdown=false reads the text as written")
+	normalizeText := fs.Bool("normalize", true, "read numbers, dates and times as words; --normalize=false leaves them to espeak-ng")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -243,10 +244,11 @@ func say(args []string) error {
 		return err
 	}
 	pcm, err := m.Synthesize(context.Background(), kittentts.Request{
-		Text:     text,
-		Voice:    *voice,
-		Speed:    float32(*speed),
-		Markdown: *md,
+		Text:      text,
+		Voice:     *voice,
+		Speed:     float32(*speed),
+		Markdown:  *md,
+		Normalize: *normalizeText,
 	})
 	if err != nil {
 		return err

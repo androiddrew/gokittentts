@@ -1,0 +1,1514 @@
+[
+ {
+  "input": "Smith et al. 2024, pp. 31-35",
+  "output": "Smith et al twenty twenty-four pages thirty-one to thirty-five"
+ },
+ {
+  "input": "Fig. 2",
+  "output": "Figure two"
+ },
+ {
+  "input": "Dr. Rivera paid $12.50 at 3:05 p.m.",
+  "output": "Doctor Rivera paid twelve dollars and fifty cents at three oh five p m."
+ },
+ {
+  "input": "Jan. 2026",
+  "output": "January twenty twenty-six"
+ },
+ {
+  "input": "version 2.4",
+  "output": "version two point four"
+ },
+ {
+  "input": "May 5, 2026",
+  "output": "May fifth, twenty twenty-six"
+ },
+ {
+  "input": "10:30 AM",
+  "output": "ten thirty a m"
+ },
+ {
+  "input": "$1,250.00",
+  "output": "one thousand two hundred fifty dollars"
+ },
+ {
+  "input": "9%",
+  "output": "nine percent"
+ },
+ {
+  "input": "v1.2.3",
+  "output": "v one point two point three"
+ },
+ {
+  "input": "Visit https://example.com or email hello@example.com.",
+  "output": "Visit e x a m p l e dot c o m or email h e l l o at e x a m p l e dot c o m."
+ },
+ {
+  "input": "0",
+  "output": "zero"
+ },
+ {
+  "input": "7",
+  "output": "seven"
+ },
+ {
+  "input": "13",
+  "output": "thirteen"
+ },
+ {
+  "input": "42",
+  "output": "forty-two"
+ },
+ {
+  "input": "99",
+  "output": "ninety-nine"
+ },
+ {
+  "input": "100",
+  "output": "one hundred"
+ },
+ {
+  "input": "101",
+  "output": "one hundred one"
+ },
+ {
+  "input": "110",
+  "output": "one hundred ten"
+ },
+ {
+  "input": "999",
+  "output": "nine hundred ninety-nine"
+ },
+ {
+  "input": "1000",
+  "output": "one thousand"
+ },
+ {
+  "input": "1001",
+  "output": "one thousand one"
+ },
+ {
+  "input": "1100",
+  "output": "eleven hundred"
+ },
+ {
+  "input": "1200",
+  "output": "twelve hundred"
+ },
+ {
+  "input": "1234",
+  "output": "one thousand two hundred thirty-four"
+ },
+ {
+  "input": "2000",
+  "output": "two thousand"
+ },
+ {
+  "input": "9999",
+  "output": "nine thousand nine hundred ninety-nine"
+ },
+ {
+  "input": "10000",
+  "output": "ten thousand"
+ },
+ {
+  "input": "12345",
+  "output": "twelve thousand three hundred forty-five"
+ },
+ {
+  "input": "100000",
+  "output": "one hundred thousand"
+ },
+ {
+  "input": "999999",
+  "output": "nine hundred ninety-nine thousand nine hundred ninety-nine"
+ },
+ {
+  "input": "1000000",
+  "output": "one million"
+ },
+ {
+  "input": "1234567",
+  "output": "one million two hundred thirty-four thousand five hundred sixty-seven"
+ },
+ {
+  "input": "1000000000",
+  "output": "one billion"
+ },
+ {
+  "input": "1000000000000",
+  "output": "one trillion"
+ },
+ {
+  "input": "999999999999999",
+  "output": "nine hundred ninety-nine trillion nine hundred ninety-nine billion nine hundred ninety-nine million nine hundred ninety-nine thousand nine hundred ninety-nine"
+ },
+ {
+  "input": "There are 3 apples.",
+  "output": "There are three apples."
+ },
+ {
+  "input": "I counted 17 birds and 40 bees.",
+  "output": "I counted seventeen birds and forty bees."
+ },
+ {
+  "input": "The answer is 42.",
+  "output": "The answer is forty-two."
+ },
+ {
+  "input": "She ran 5 miles yesterday.",
+  "output": "She ran five miles yesterday."
+ },
+ {
+  "input": "We need 0 more.",
+  "output": "We need zero more."
+ },
+ {
+  "input": "Only 1 left.",
+  "output": "Only one left."
+ },
+ {
+  "input": "Room 101 is down the hall.",
+  "output": "Room one hundred one is down the hall."
+ },
+ {
+  "input": "It costs about 1500 to fix.",
+  "output": "It costs about fifteen hundred to fix."
+ },
+ {
+  "input": "The population is 8000000.",
+  "output": "The population is eight million."
+ },
+ {
+  "input": "The town has 12,000 residents.",
+  "output": "The town has twelve thousand residents."
+ },
+ {
+  "input": "The file has 1,234,567 rows.",
+  "output": "The file has one million two hundred thirty-four thousand five hundred sixty-seven rows."
+ },
+ {
+  "input": "Around 2,500 people came.",
+  "output": "Around two thousand five hundred people came."
+ },
+ {
+  "input": "The stadium holds 100,000 fans.",
+  "output": "The stadium holds one hundred thousand fans."
+ },
+ {
+  "input": "That is 1,000,000 times better.",
+  "output": "That is one million times better."
+ },
+ {
+  "input": "Pi is 3.14.",
+  "output": "Pi is three point one four."
+ },
+ {
+  "input": "It weighs 2.5 kilograms.",
+  "output": "It weighs two point five kilograms."
+ },
+ {
+  "input": "The ratio was 0.75.",
+  "output": "The ratio was zero point seven five."
+ },
+ {
+  "input": "Use 1.50 as the factor.",
+  "output": "Use one point five zero as the factor."
+ },
+ {
+  "input": "The rate is 1.007 per step.",
+  "output": "The rate is one point zero zero seven per step."
+ },
+ {
+  "input": "Set it to 0.0 for now.",
+  "output": "Set it to zero point zero for now."
+ },
+ {
+  "input": "The value fell to -5.",
+  "output": "The value fell to negative five."
+ },
+ {
+  "input": "The temperature was -12 overnight.",
+  "output": "The temperature was negative twelve overnight."
+ },
+ {
+  "input": "The balance is -0.5 points.",
+  "output": "The balance is negative zero point five points."
+ },
+ {
+  "input": "Agent 007 reported in.",
+  "output": "Agent seven reported in."
+ },
+ {
+  "input": "Dial 0042 to reach the desk.",
+  "output": "Dial forty-two to reach the desk."
+ },
+ {
+  "input": "A score of 3.5 out of 5.",
+  "output": "A score of three point five out of five."
+ },
+ {
+  "input": "It grew from 1.2 to 4.8 in a year.",
+  "output": "It grew from one point two to four point eight in a year."
+ },
+ {
+  "input": "The total came to 12,345.67 points.",
+  "output": "The total came to twelve thousand three hundred forty-five point six seven points."
+ },
+ {
+  "input": "Line 10 and line 20 differ.",
+  "output": "Line ten and line twenty differ."
+ },
+ {
+  "input": "Version 3 is better than version 2.",
+  "output": "Version three is better than version two."
+ },
+ {
+  "input": "Chapter 12 starts on the next page.",
+  "output": "Chapter twelve starts on the next page."
+ },
+ {
+  "input": "About 70 of the 120 seats were filled.",
+  "output": "About seventy of the one hundred twenty seats were filled."
+ },
+ {
+  "input": "Item #4 is missing.",
+  "output": "Item four is missing."
+ },
+ {
+  "input": "Order 66 was executed.",
+  "output": "Order sixty-six was executed."
+ },
+ {
+  "input": "Add 2 and 2 to get 4.",
+  "output": "Add two and two to get four."
+ },
+ {
+  "input": "Just 1 thing remains.",
+  "output": "Just one thing remains."
+ },
+ {
+  "input": "There were 3, maybe 4.",
+  "output": "There were three maybe four."
+ },
+ {
+  "input": "I picked 5, 6 and 7.",
+  "output": "I picked five six and seven."
+ },
+ {
+  "input": "Steps 1, 2, and 3 are done.",
+  "output": "Steps one two and three are done."
+ },
+ {
+  "input": "In 2024, the team grew.",
+  "output": "In twenty twenty-four the team grew."
+ },
+ {
+  "input": "By 1999, the web was everywhere.",
+  "output": "By nineteen ninety-nine the web was everywhere."
+ },
+ {
+  "input": "After 10, we stopped.",
+  "output": "After ten we stopped."
+ },
+ {
+  "input": "Count 1,2,3 out loud.",
+  "output": "Count one hundred twenty-three out loud."
+ },
+ {
+  "input": "Sizes: 8, 10, 12.",
+  "output": "Sizes: eight ten twelve."
+ },
+ {
+  "input": "The code (404), not found.",
+  "error": "ValueError: invalid literal for int() with base 10: ''"
+ },
+ {
+  "input": "He said \"hi\", then left.",
+  "error": "ValueError: invalid literal for int() with base 10: ''"
+ },
+ {
+  "input": "Wait , what?",
+  "error": "ValueError: invalid literal for int() with base 10: ''"
+ },
+ {
+  "input": "\"Yes\", she said.",
+  "error": "ValueError: invalid literal for int() with base 10: ''"
+ },
+ {
+  "input": "Item (a), item (b).",
+  "error": "ValueError: invalid literal for int() with base 10: ''"
+ },
+ {
+  "input": "The end).",
+  "output": "The end ."
+ },
+ {
+  "input": "The debt is 1,000,000,000,000,000 dollars.",
+  "output": "The debt is dollars."
+ },
+ {
+  "input": "Avogadro's number is about 602214076000000000000000.",
+  "output": "Avogadro s number is about ."
+ },
+ {
+  "input": "That serial is 12345678901234567890.",
+  "output": "That serial is six hundred seventy-eight trillion nine hundred one billion two hundred thirty-four million five hundred sixty-seven thousand eight hundred ninety."
+ },
+ {
+  "input": "A googol has 100 zeros.",
+  "output": "A googol has one hundred zeros."
+ },
+ {
+  "input": "2024 budget",
+  "output": "twenty twenty-four budget"
+ },
+ {
+  "input": "The 2024 budget passed.",
+  "output": "The twenty twenty-four budget passed."
+ },
+ {
+  "input": "In 1999 we partied.",
+  "output": "In nineteen ninety-nine we partied."
+ },
+ {
+  "input": "Born in 1987.",
+  "output": "Born in nineteen eighty-seven."
+ },
+ {
+  "input": "Back in 1900 things were different.",
+  "output": "Back in nineteen hundred things were different."
+ },
+ {
+  "input": "The year 2000 was a big deal.",
+  "output": "The year two thousand was a big deal."
+ },
+ {
+  "input": "It happened in 2005.",
+  "output": "It happened in two thousand five."
+ },
+ {
+  "input": "The 2010 census counted everyone.",
+  "output": "The twenty ten census counted everyone."
+ },
+ {
+  "input": "Plans for 2050 are ambitious.",
+  "output": "Plans for twenty fifty are ambitious."
+ },
+ {
+  "input": "The deadline is 2099.",
+  "output": "The deadline is twenty ninety-nine."
+ },
+ {
+  "input": "Founded in 1800.",
+  "output": "Founded in eighteen hundred."
+ },
+ {
+  "input": "The year 1066 changed England.",
+  "output": "The year one thousand sixty-six changed England."
+ },
+ {
+  "input": "It was 1776 when it started.",
+  "output": "It was one thousand seven hundred seventy-six when it started."
+ },
+ {
+  "input": "The 2100 forecast is grim.",
+  "output": "The two thousand one hundred forecast is grim."
+ },
+ {
+  "input": "In 1950 and 1960 the town grew.",
+  "output": "In nineteen fifty and nineteen sixty the town grew."
+ },
+ {
+  "input": "From 2019 to 2023 sales doubled.",
+  "output": "From twenty nineteen to twenty twenty-three sales doubled."
+ },
+ {
+  "input": "pages 100-200",
+  "output": "pages one hundred to two hundred"
+ },
+ {
+  "input": "10-20 items",
+  "output": "ten to twenty items"
+ },
+ {
+  "input": "Read pages 31-35 tonight.",
+  "output": "Read pages thirty-one to thirty-five tonight."
+ },
+ {
+  "input": "The 2020-2024 plan is done.",
+  "output": "The twenty twenty to twenty twenty-four plan is done."
+ },
+ {
+  "input": "Ages 5-12 are welcome.",
+  "output": "Ages five to twelve are welcome."
+ },
+ {
+  "input": "Open 9-5 on weekdays.",
+  "output": "Open nine to five on weekdays."
+ },
+ {
+  "input": "Scores of 0-100 are allowed.",
+  "output": "Scores of zero to one hundred are allowed."
+ },
+ {
+  "input": "Between 1990-2010 it changed.",
+  "output": "Between nineteen ninety to twenty ten it changed."
+ },
+ {
+  "input": "It runs 1-2 hours.",
+  "output": "It runs one to two hours."
+ },
+ {
+  "input": "Sizes 2-4-6 are left.",
+  "output": "Sizes two to four six are left."
+ },
+ {
+  "input": "Call 555-1234 now.",
+  "output": "Call five hundred fifty-five to one thousand two hundred thirty-four now."
+ },
+ {
+  "input": "Use x-5 as the offset.",
+  "output": "Use x five as the offset."
+ },
+ {
+  "input": "1st place",
+  "output": "first place"
+ },
+ {
+  "input": "2nd floor",
+  "output": "second floor"
+ },
+ {
+  "input": "3rd base",
+  "output": "third base"
+ },
+ {
+  "input": "4th of July",
+  "output": "fourth of July"
+ },
+ {
+  "input": "21st century",
+  "output": "twenty-first century"
+ },
+ {
+  "input": "22nd birthday",
+  "output": "twenty-second birthday"
+ },
+ {
+  "input": "23rd anniversary",
+  "output": "twenty-third anniversary"
+ },
+ {
+  "input": "100th day",
+  "output": "one hundredth day"
+ },
+ {
+  "input": "He finished 11th.",
+  "output": "He finished eleventh."
+ },
+ {
+  "input": "She was 12th in line.",
+  "output": "She was twelfth in line."
+ },
+ {
+  "input": "The 13th floor is missing.",
+  "output": "The thirteenth floor is missing."
+ },
+ {
+  "input": "It is our 20th year.",
+  "output": "It is our twentyth year."
+ },
+ {
+  "input": "The 30th reunion was fun.",
+  "output": "The thirtyth reunion was fun."
+ },
+ {
+  "input": "The 40th, 50th and 60th games.",
+  "output": "The fortyth, fiftyth and sixtyth games."
+ },
+ {
+  "input": "The 90th minute.",
+  "output": "The ninetyth minute."
+ },
+ {
+  "input": "The 101st airborne.",
+  "output": "The one hundred first airborne."
+ },
+ {
+  "input": "The 111th entry.",
+  "output": "The one hundred eleventh entry."
+ },
+ {
+  "input": "The 1000th visitor wins.",
+  "output": "The one thousandth visitor wins."
+ },
+ {
+  "input": "The 1ST and 2ND rounds.",
+  "output": "The first and second rounds."
+ },
+ {
+  "input": "He came 0th somehow.",
+  "output": "He came zeroth somehow."
+ },
+ {
+  "input": "The 3th is a typo.",
+  "output": "The third is a typo."
+ },
+ {
+  "input": "My 25th birthday was great.",
+  "output": "My twenty-fifth birthday was great."
+ },
+ {
+  "input": "January 1, 2024",
+  "output": "January first, twenty twenty-four"
+ },
+ {
+  "input": "Jan 5th, 2025",
+  "output": "January fifth, twenty twenty-five"
+ },
+ {
+  "input": "February 14, 2023 was a Tuesday.",
+  "output": "February fourteenth, twenty twenty-three was a Tuesday."
+ },
+ {
+  "input": "Feb. 29, 2024 is a leap day.",
+  "output": "February twenty-ninth, twenty twenty-four is a leap day."
+ },
+ {
+  "input": "The meeting is on March 3rd, 2025.",
+  "output": "The meeting is on March third, twenty twenty-five."
+ },
+ {
+  "input": "Mar 15 2024 is the deadline.",
+  "output": "March fifteenth, twenty twenty-four is the deadline."
+ },
+ {
+  "input": "April 1, 2000 was no joke.",
+  "output": "April first, two thousand was no joke."
+ },
+ {
+  "input": "Apr. 30, 1999 was the last day.",
+  "output": "April thirtyth, nineteen ninety-nine was the last day."
+ },
+ {
+  "input": "May 31, 2026",
+  "output": "May thirty-first, twenty twenty-six"
+ },
+ {
+  "input": "June 21st, 2021 was the solstice.",
+  "output": "June twenty-first, twenty twenty-one was the solstice."
+ },
+ {
+  "input": "Jun 6, 1944 changed history.",
+  "output": "June sixth, nineteen forty-four changed history."
+ },
+ {
+  "input": "July 4, 1776",
+  "output": "July fourth, one thousand seven hundred seventy-six"
+ },
+ {
+  "input": "Jul. 20, 1969 was the moon landing.",
+  "output": "July twentyth, nineteen sixty-nine was the moon landing."
+ },
+ {
+  "input": "August 15, 2010",
+  "output": "August fifteenth, twenty ten"
+ },
+ {
+  "input": "Aug 9th 2009 marked a change.",
+  "output": "August ninth, two thousand nine marked a change."
+ },
+ {
+  "input": "September 11, 2001",
+  "output": "September eleventh, two thousand one"
+ },
+ {
+  "input": "Sept. 1, 2022 was the start.",
+  "output": "September first, twenty twenty-two was the start."
+ },
+ {
+  "input": "Sep 30, 2019",
+  "output": "September thirtyth, twenty nineteen"
+ },
+ {
+  "input": "October 31, 2023 was spooky.",
+  "output": "October thirty-first, twenty twenty-three was spooky."
+ },
+ {
+  "input": "Oct. 3rd, 2003",
+  "output": "October third, two thousand three"
+ },
+ {
+  "input": "November 22, 1963",
+  "output": "November twenty-second, nineteen sixty-three"
+ },
+ {
+  "input": "Nov 5 2015",
+  "output": "November fifth, twenty fifteen"
+ },
+ {
+  "input": "December 25, 2025",
+  "output": "December twenty-fifth, twenty twenty-five"
+ },
+ {
+  "input": "Dec. 31, 1999 was the last night.",
+  "output": "December thirty-first, nineteen ninety-nine was the last night."
+ },
+ {
+  "input": "march 3, 2025 in lowercase.",
+  "output": "March third, twenty twenty-five in lowercase."
+ },
+ {
+  "input": "JANUARY 9, 2020 in capitals.",
+  "output": "January ninth, twenty twenty in capitals."
+ },
+ {
+  "input": "Launched in March 2024.",
+  "output": "Launched in March twenty twenty-four."
+ },
+ {
+  "input": "Since Jan 2020 nothing changed.",
+  "output": "Since January twenty twenty nothing changed."
+ },
+ {
+  "input": "Due Dec. 2025.",
+  "output": "Due December twenty twenty-five."
+ },
+ {
+  "input": "In September 2001 everything changed.",
+  "output": "In September two thousand one everything changed."
+ },
+ {
+  "input": "Expected Q3 2025.",
+  "output": "Expected Q3 twenty twenty-five."
+ },
+ {
+  "input": "The 2025-01-15 release.",
+  "output": "The two thousand twenty-five to one fifteen release."
+ },
+ {
+  "input": "Sent on 01/15/2025.",
+  "output": "Sent on one fifteen twenty twenty-five."
+ },
+ {
+  "input": "Updated 15 January 2025.",
+  "output": "Updated fifteen January twenty twenty-five."
+ },
+ {
+  "input": "May the force be with you.",
+  "output": "May the force be with you."
+ },
+ {
+  "input": "We met on May 2 at noon.",
+  "output": "We met on May two at noon."
+ },
+ {
+  "input": "3:30pm",
+  "output": "three thirty p m"
+ },
+ {
+  "input": "14:00",
+  "output": "fourteen"
+ },
+ {
+  "input": "9:05 AM",
+  "output": "nine oh five a m"
+ },
+ {
+  "input": "12:00pm",
+  "output": "twelve p m"
+ },
+ {
+  "input": "Meet me at 4:30 p.m. today.",
+  "output": "Meet me at four thirty p m. today."
+ },
+ {
+  "input": "The train leaves at 7:15 a.m.",
+  "output": "The train leaves at seven fifteen a m."
+ },
+ {
+  "input": "Lunch is at 12:30 PM.",
+  "output": "Lunch is at twelve thirty p m."
+ },
+ {
+  "input": "The show starts at 8:00 PM.",
+  "output": "The show starts at eight p m."
+ },
+ {
+  "input": "Wake up at 6:00am.",
+  "output": "Wake up at six a m."
+ },
+ {
+  "input": "It ended at 23:59.",
+  "output": "It ended at twenty-three fifty-nine."
+ },
+ {
+  "input": "The store opens at 09:00.",
+  "output": "The store opens at nine."
+ },
+ {
+  "input": "The alarm rang at 5:07.",
+  "output": "The alarm rang at five oh seven."
+ },
+ {
+  "input": "The race took 1:02:03.",
+  "output": "The race took one oh two and three seconds."
+ },
+ {
+  "input": "Midnight is 0:00.",
+  "output": "Midnight is zero."
+ },
+ {
+  "input": "The call is at 10:00 tomorrow.",
+  "output": "The call is at tentomorrow."
+ },
+ {
+  "input": "We arrive at 3:00 today.",
+  "output": "We arrive at threetoday."
+ },
+ {
+  "input": "At 11:45 pm we left.",
+  "output": "At eleven forty-five p m we left."
+ },
+ {
+  "input": "By 2:30, everyone was tired.",
+  "output": "By two thirty, everyone was tired."
+ },
+ {
+  "input": "It is 13:30 PM somehow.",
+  "output": "It is one thirty p m somehow."
+ },
+ {
+  "input": "Meet at 7:30a.m. sharp.",
+  "output": "Meet at seven thirty a m. sharp."
+ },
+ {
+  "input": "Meet at 7:30 AM.",
+  "output": "Meet at seven thirty a m."
+ },
+ {
+  "input": "The log says 12:34:56.",
+  "output": "The log says twelve thirty-four and fifty-six seconds."
+ },
+ {
+  "input": "The ratio was 3:2.",
+  "output": "The ratio was three:two."
+ },
+ {
+  "input": "Scores were 21:14 at halftime.",
+  "output": "Scores were twenty-one fourteenat halftime."
+ },
+ {
+  "input": "It costs $5.",
+  "output": "It costs five dollars."
+ },
+ {
+  "input": "It costs $5.99.",
+  "output": "It costs five dollars and ninety-nine cents."
+ },
+ {
+  "input": "The price is $1,000.",
+  "output": "The price is one thousand dollars."
+ },
+ {
+  "input": "We raised $3.5 million.",
+  "output": "We raised three dollars and fifty cents million."
+ },
+ {
+  "input": "The budget was $3.5 million.",
+  "output": "The budget was three dollars and fifty cents million."
+ },
+ {
+  "input": "The deal was worth $2B.",
+  "output": "The deal was worth two billion dollars."
+ },
+ {
+  "input": "Revenue hit $10M last year.",
+  "output": "Revenue hit ten million dollars last year."
+ },
+ {
+  "input": "It costs €20.",
+  "output": "It costs twenty euros."
+ },
+ {
+  "input": "That was £3.50 well spent.",
+  "output": "That was three pounds and fifty cents well spent."
+ },
+ {
+  "input": "A coffee is ¥500.",
+  "output": "A coffee is five hundred yens."
+ },
+ {
+  "input": "Pay ₹100 at the gate.",
+  "output": "Pay one hundred rupees at the gate."
+ },
+ {
+  "input": "One ₿ is a lot.",
+  "output": "One is a lot."
+ },
+ {
+  "input": "$0.99 per song.",
+  "output": "zero dollars and ninety-nine cents per song."
+ },
+ {
+  "input": "He owes me $100.",
+  "output": "He owes me one hundred dollars."
+ },
+ {
+  "input": "A $5 bill.",
+  "output": "A five dollars bill."
+ },
+ {
+  "input": "50% off",
+  "output": "fifty percent off"
+ },
+ {
+  "input": "The rate rose 3.5%.",
+  "output": "The rate rose three point five percent."
+ },
+ {
+  "input": "Only 0.1% failed.",
+  "output": "Only zero point one percent failed."
+ },
+ {
+  "input": "Growth was -2% this quarter.",
+  "output": "Growth was negative two percent this quarter."
+ },
+ {
+  "input": "100% sure.",
+  "output": "one hundred percent sure."
+ },
+ {
+  "input": "Between 10% and 20% of users.",
+  "output": "Between ten percent and twenty percent of users."
+ },
+ {
+  "input": "1,000% growth is unusual.",
+  "output": "one thousand percent growth is unusual."
+ },
+ {
+  "input": "Python 3.12.1 was released.",
+  "output": "Python three point twelve point one was released."
+ },
+ {
+  "input": "Upgrade to v2.0.1 today.",
+  "output": "Upgrade to v two point zero point one today."
+ },
+ {
+  "input": "Kernel 6.8.0-45 is installed.",
+  "output": "Kernel six point eight point zero forty-five is installed."
+ },
+ {
+  "input": "GPT-4 is a model.",
+  "output": "GPT four is a model."
+ },
+ {
+  "input": "I use gpt-3.5 sometimes.",
+  "output": "I use gpt three point five sometimes."
+ },
+ {
+  "input": "The Llama-2 weights are open.",
+  "output": "The Llama two weights are open."
+ },
+ {
+  "input": "Try Model-3 next.",
+  "output": "Try Model three next."
+ },
+ {
+  "input": "Release 1.0 is out.",
+  "output": "Release one point zero is out."
+ },
+ {
+  "input": "Node 20.11.0 is required.",
+  "output": "Node twenty point eleven point zero is required."
+ },
+ {
+  "input": "See RFC-2616 for details.",
+  "output": "See RFC two thousand six hundred sixteen for details."
+ },
+ {
+  "input": "3 GB",
+  "output": "three GB"
+ },
+ {
+  "input": "It has 16 GB of memory.",
+  "output": "It has sixteen GB of memory."
+ },
+ {
+  "input": "The file is 500 MB.",
+  "output": "The file is five hundred MB."
+ },
+ {
+  "input": "Drive 60 mph.",
+  "output": "Drive sixty mph."
+ },
+ {
+  "input": "It is 25 °C outside.",
+  "output": "It is twenty-five C outside."
+ },
+ {
+  "input": "The CPU runs at 3.5 GHz.",
+  "output": "The CPU runs at three point five GHz."
+ },
+ {
+  "input": "Latency was 20 ms.",
+  "output": "Latency was twenty Ms"
+ },
+ {
+  "input": "The bag weighs 5 kg.",
+  "output": "The bag weighs five kg."
+ },
+ {
+  "input": "It is 10 km away.",
+  "output": "It is ten km away."
+ },
+ {
+  "input": "Take 200 mg twice a day.",
+  "output": "Take two hundred mg twice a day."
+ },
+ {
+  "input": "Add 250 ml of water.",
+  "output": "Add two hundred fifty ml of water."
+ },
+ {
+  "input": "The model has 7B parameters.",
+  "output": "The model has sevenB parameters."
+ },
+ {
+  "input": "We served 10K users.",
+  "output": "We served tenK users."
+ },
+ {
+  "input": "The 1990s were great.",
+  "output": "The nineteen ninetys were great."
+ },
+ {
+  "input": "Mix 1/2 cup of sugar.",
+  "output": "Mix one two cup of sugar."
+ },
+ {
+  "input": "The value is 1e10.",
+  "output": "The value is onee1zero."
+ },
+ {
+  "input": "The speed of light is 3e8 meters per second.",
+  "output": "The speed of light is threee8 meters per second."
+ },
+ {
+  "input": "Approximately .5 of them.",
+  "output": "Approximately .five of them."
+ },
+ {
+  "input": "Ping 192.168.1.1 to check.",
+  "output": "Ping one hundred ninety-two point one hundred sixty-eight point one point one to check."
+ },
+ {
+  "input": "Call (555) 123-4567 now.",
+  "output": "Call five hundred fifty-five one hundred twenty-three to four thousand five hundred sixty-seven now."
+ },
+ {
+  "input": "Visit https://example.com/docs for more.",
+  "output": "Visit e x a m p l e dot c o m slash d o c s for more."
+ },
+ {
+  "input": "See www.example.org for details.",
+  "output": "See w w w d o t e x a m p l e dot o r g for details."
+ },
+ {
+  "input": "The repo is at https://github.com/KittenML/KittenTTS.",
+  "output": "The repo is at g i t h u b dot c o m slash k i t t e n m l slash k i t t e n t t s dot"
+ },
+ {
+  "input": "Email bob@example.com for help.",
+  "output": "Email b o b at e x a m p l e dot c o m for help."
+ },
+ {
+  "input": "Contact support@my-company.io today.",
+  "output": "Contact s u p p o r t at m y dash c o m p a n y dot i o today."
+ },
+ {
+  "input": "Go to http://localhost:8080/v1/audio/speech now.",
+  "output": "Go to l o c a l h o s t eight zero eight zero slash v one slash a u d i o slash s p e e c h now."
+ },
+ {
+  "input": "Dr. Smith is here.",
+  "output": "Doctor Smith is here."
+ },
+ {
+  "input": "Prof. Jones teaches math.",
+  "output": "Professor Jones teaches math."
+ },
+ {
+  "input": "Mr. and Mrs. Brown arrived.",
+  "output": "Mister and Misses Brown arrived."
+ },
+ {
+  "input": "Ms. Green called.",
+  "output": "Ms Green called."
+ },
+ {
+  "input": "See Fig. 3 for details.",
+  "output": "See Figure three for details."
+ },
+ {
+  "input": "Figs. 4 and 5 show results.",
+  "output": "Figures four and five show results."
+ },
+ {
+  "input": "Read pp. 10-12.",
+  "output": "Read pages ten to twelve."
+ },
+ {
+  "input": "See p. 7.",
+  "output": "See page seven."
+ },
+ {
+  "input": "Read ch. 4 first.",
+  "output": "Read chapter four first."
+ },
+ {
+  "input": "See sec. 2.1 for background.",
+  "output": "See section two point one for background."
+ },
+ {
+  "input": "As Smith et al. showed.",
+  "output": "As Smith et al showed."
+ },
+ {
+  "input": "Use <b>bold</b> text.",
+  "output": "Use bold text."
+ },
+ {
+  "input": "Line one<br>line two.",
+  "output": "Line one line two."
+ },
+ {
+  "input": "Tom & Jerry.",
+  "output": "Tom Jerry."
+ },
+ {
+  "input": "A + B = C.",
+  "output": "A B C."
+ },
+ {
+  "input": "Use the #general channel.",
+  "output": "Use the general channel."
+ },
+ {
+  "input": "Ping @alice about it.",
+  "output": "Ping alice about it."
+ },
+ {
+  "input": "Price * quantity.",
+  "output": "Price quantity."
+ },
+ {
+  "input": "Path is a/b/c.",
+  "output": "Path is a b c."
+ },
+ {
+  "input": "Hello... world.",
+  "output": "Hello... world."
+ },
+ {
+  "input": "Wait—what?",
+  "output": "Wait—what?"
+ },
+ {
+  "input": "It's 5 o'clock.",
+  "output": "It s five o clock."
+ },
+ {
+  "input": "Don't stop.",
+  "output": "Don t stop."
+ },
+ {
+  "input": "\"Quoted text\" here.",
+  "output": "Quoted text here."
+ },
+ {
+  "input": "Use [brackets] and {braces}.",
+  "output": "Use brackets and braces ."
+ },
+ {
+  "input": "Items: apples; pears; plums.",
+  "output": "Items: apples; pears; plums."
+ },
+ {
+  "input": "Really?! Yes!",
+  "output": "Really?! Yes!"
+ },
+ {
+  "input": "# Heading 1",
+  "output": "Heading one"
+ },
+ {
+  "input": "## Step 2: install",
+  "output": "Step two: install"
+ },
+ {
+  "input": "- Item 1",
+  "output": "- Item one"
+ },
+ {
+  "input": "* Item 2",
+  "output": "Item two"
+ },
+ {
+  "input": "1. First step",
+  "output": "one. First step"
+ },
+ {
+  "input": "2. Second step",
+  "output": "two. Second step"
+ },
+ {
+  "input": "**Bold 5** and *italic 6*.",
+  "output": "Bold five and italic six ."
+ },
+ {
+  "input": "`code 7` inline.",
+  "output": "code seven inline."
+ },
+ {
+  "input": "[Link 8](https://example.com)",
+  "output": "Link eight e x a m p l e dot c o m"
+ },
+ {
+  "input": "| Col 1 | Col 2 |",
+  "output": "Col one Col two"
+ },
+ {
+  "input": "café 2024",
+  "output": "café twenty twenty-four"
+ },
+ {
+  "input": "naïve 3 times",
+  "output": "naïve three times"
+ },
+ {
+  "input": "Ünïcödé 5",
+  "output": "Ünïcödé five"
+ },
+ {
+  "input": "Arabic digit ٣ cats.",
+  "output": "Arabic digit three cats."
+ },
+ {
+  "input": "Fullwidth １２３ items.",
+  "output": "Fullwidth one hundred twenty-three items."
+ },
+ {
+  "input": "Superscript 10² here.",
+  "output": "Superscript ten² here."
+ },
+ {
+  "input": "Spaced 4:30 PM here.",
+  "output": "Spaced four thirty p m here."
+ },
+ {
+  "input": "Non-breaking 5 kg.",
+  "output": "Non-breaking five kg."
+ },
+ {
+  "input": "Tab\tseparated\t3\tvalues.",
+  "output": "Tab separated three values."
+ },
+ {
+  "input": "Multiple   spaces   7   here.",
+  "output": "Multiple spaces seven here."
+ },
+ {
+  "input": "Line one",
+  "output": "Line one"
+ },
+ {
+  "input": "   Leading spaces 2 here.",
+  "output": "Leading spaces two here."
+ },
+ {
+  "input": "Sure! Here are 3 tips for better sleep: go to bed by 10:30 PM, avoid screens after 9:00, and aim for 7-9 hours.",
+  "output": "Sure! Here are three tips for better sleep: go to bed by ten thirty p m, avoid screens after nine, and aim for seven to nine hours."
+ },
+ {
+  "input": "The meeting is scheduled for March 3rd, 2025 at 2:00 PM in Room 204.",
+  "output": "The meeting is scheduled for March third, twenty twenty-five at two p m in Room two hundred four."
+ },
+ {
+  "input": "In 2023, revenue grew 15% to $4.2 billion, up from $3.6 billion in 2022.",
+  "output": "In twenty twenty-three revenue grew fifteen percent to four dollars and twenty cents billion, up from three dollars and sixty cents billion in twenty twenty-two."
+ },
+ {
+  "input": "The first 100 users get a 20% discount until Dec. 31, 2025.",
+  "output": "The first one hundred users get a twenty percent discount until December thirty-first, twenty twenty-five."
+ },
+ {
+  "input": "Your order #12345 will arrive between June 5-7.",
+  "output": "Your order twelve thousand three hundred forty-five will arrive between June five to seven."
+ },
+ {
+  "input": "Step 1: install Python 3.11. Step 2: run pip install. Step 3: done.",
+  "output": "Step one: install Python three point one one. Step two: run pip install. Step three: done."
+ },
+ {
+  "input": "The Apollo 11 mission landed on July 20, 1969 at 20:17 UTC.",
+  "output": "The Apollo eleven mission landed on July twentyth, nineteen sixty-nine at twenty seventeenUTC."
+ },
+ {
+  "input": "The recipe needs 2 eggs, 1.5 cups of flour and 3/4 cup of milk.",
+  "output": "The recipe needs two eggs, one point five cups of flour and three four cup of milk."
+ },
+ {
+  "input": "At 6:45 am the 3rd train left platform 9.",
+  "output": "At six forty-five a m the third train left platform nine."
+ },
+ {
+  "input": "World War II ended in 1945; the Cold War lasted until 1991.",
+  "output": "World War II ended in nineteen forty-five; the Cold War lasted until nineteen ninety-one."
+ },
+ {
+  "input": "The 21st century began on January 1, 2001, not 2000.",
+  "output": "The twenty-first century began on January first, two thousand one, not two thousand."
+ },
+ {
+  "input": "Mount Everest is 8,849 meters tall.",
+  "output": "Mount Everest is eight thousand eight hundred forty-nine meters tall."
+ },
+ {
+  "input": "The project had 1,024 commits by Aug 2024.",
+  "output": "The project had one thousand twenty-four commits by August twenty twenty-four."
+ },
+ {
+  "input": "Run the job every 15 minutes between 9:00 and 17:00.",
+  "output": "Run the job every fifteen minutes between nineand seventeen."
+ },
+ {
+  "input": "Queen Elizabeth II reigned for 70 years.",
+  "output": "Queen Elizabeth II reigned for seventy years."
+ },
+ {
+  "input": "Chapter IV covers the 1800s.",
+  "output": "Chapter IV covers the eighteen hundreds."
+ },
+ {
+  "input": "Henry VIII had 6 wives.",
+  "output": "Henry VIII had six wives."
+ },
+ {
+  "input": "The Super Bowl LVIII was in 2024.",
+  "output": "The Super Bowl LVIII was in twenty twenty-four."
+ },
+ {
+  "input": "The bus runs every 20-30 minutes.",
+  "output": "The bus runs every twenty to thirty minutes."
+ },
+ {
+  "input": "Call me at 5:30, or after 6.",
+  "output": "Call me at five thirty, or after six."
+ },
+ {
+  "input": "The 2nd, 3rd and 4th place winners get prizes.",
+  "output": "The second, third and fourth place winners get prizes."
+ },
+ {
+  "input": "Her flight is at 10:15 a.m. on Friday.",
+  "output": "Her flight is at ten fifteen a m. on Friday."
+ },
+ {
+  "input": "On Nov. 8, 2016 the polls closed at 8:00 p.m.",
+  "output": "On November eighth, twenty sixteen the polls closed at eight p m."
+ },
+ {
+  "input": "The building has 102 floors and was finished in 1931.",
+  "output": "The building has one hundred two floors and was finished in nineteen thirty-one."
+ },
+ {
+  "input": "Over 7,000 languages are spoken today.",
+  "output": "Over seven thousand languages are spoken today."
+ },
+ {
+  "input": "The marathon is 42.195 kilometers long.",
+  "output": "The marathon is forty-two point one nine five kilometers long."
+ },
+ {
+  "input": "The lease runs 2024-2026.",
+  "output": "The lease runs twenty twenty-four to twenty twenty-six."
+ },
+ {
+  "input": "The 1st of May is a holiday.",
+  "output": "The first of May is a holiday."
+ },
+ {
+  "input": "Read the 3rd paragraph twice.",
+  "output": "Read the third paragraph twice."
+ },
+ {
+  "input": "The score was 3-1 at the 90th minute.",
+  "output": "The score was three to one at the ninetyth minute."
+ },
+ {
+  "input": "There are 365 days in a year, 366 in a leap year.",
+  "output": "There are three hundred sixty-five days in a year, three hundred sixty-six in a leap year."
+ },
+ {
+  "input": "I slept from 11:00 PM to 7:00 AM.",
+  "output": "I slept from eleven p m to seven a m."
+ },
+ {
+  "input": "The 0.1 release was buggy, the 0.2 release was not.",
+  "output": "The zero point one release was buggy, the zero point two release was not."
+ },
+ {
+  "input": "His record was 9.58 seconds in 2009.",
+  "output": "His record was nine point five eight seconds in two thousand nine."
+ },
+ {
+  "input": "Sales hit 1,000,000 units by April 2021.",
+  "output": "Sales hit one million units by April twenty twenty-one."
+ },
+ {
+  "input": "The class meets Mon-Fri 8:30-10:00.",
+  "output": "The class meets Mon-Fri eight thirty-ten."
+ },
+ {
+  "input": "The 5th of November is remembered.",
+  "output": "The fifth of November is remembered."
+ },
+ {
+  "input": "Interest is compounded 12 times a year.",
+  "output": "Interest is compounded twelve times a year."
+ },
+ {
+  "input": "The answer, 42, was unexpected.",
+  "output": "The answer, forty-two was unexpected."
+ },
+ {
+  "input": "Roughly 1 in 4 people agree.",
+  "output": "Roughly one in four people agree."
+ },
+ {
+  "input": "café2024",
+  "output": "cafétwenty twenty-four"
+ },
+ {
+  "input": "abc123 and x99",
+  "output": "abc1twenty-three and x9nine"
+ },
+ {
+  "input": "ID A1st is wrong.",
+  "output": "ID A1st is wrong."
+ },
+ {
+  "input": "Version x5-6 and 5-6x and 5-6_ differ.",
+  "output": "Version x5 six and fivenegative sixx and fivenegative six_ differ."
+ },
+ {
+  "input": "The 5-6 split.",
+  "output": "The five to six split."
+ },
+ {
+  "input": "A_7-8 code.",
+  "output": "A_sevennegative eight code."
+ },
+ {
+  "input": "Born-2020 in text.",
+  "output": "Born two thousand twenty in text."
+ },
+ {
+  "input": "It is 12:30x now.",
+  "output": "It is twelve:thirtyx now."
+ },
+ {
+  "input": "Call ab3:30 or é3:30.",
+  "output": "Call ab3:thirty or éthree:thirty."
+ },
+ {
+  "input": "At 3:05 p.m.",
+  "output": "At three oh five p m."
+ },
+ {
+  "input": "At 3:05 p.m",
+  "output": "At three oh five p m"
+ },
+ {
+  "input": "At 3:05 am, sharp.",
+  "output": "At three oh five a m, sharp."
+ },
+ {
+  "input": "At 3:05 ammo.",
+  "output": "At three oh fiveammo."
+ },
+ {
+  "input": "Done by 12:345.",
+  "output": "Done by twelve:three hundred forty-five."
+ },
+ {
+  "input": "May 5, 20261 is not a date.",
+  "output": "May five twenty thousand two hundred sixty-one is not a date."
+ },
+ {
+  "input": "Mayday 5, 2020 is not a date.",
+  "output": "Mayday five twenty twenty is not a date."
+ },
+ {
+  "input": "XMay 5, 2020 again.",
+  "output": "XMay five twenty twenty again."
+ },
+ {
+  "input": "Get 1sté now.",
+  "output": "Get onesté now."
+ },
+ {
+  "input": "Ten 10² and 2³.",
+  "output": "Ten ten² and two³."
+ },
+ {
+  "input": "Coordinates -5,-6 here.",
+  "output": "Coordinates negative fivenegative six here."
+ },
+ {
+  "input": "A lone - dash and -- double.",
+  "output": "A lone - dash and -- double."
+ },
+ {
+  "input": "The 1st. And 2nd!",
+  "output": "The first. And second!"
+ },
+ {
+  "input": "Rates of 4.5.6 and 7..8 differ.",
+  "output": "Rates of four point five point six and seven..eight differ."
+ },
+ {
+  "input": "Pages 5-6x here.",
+  "output": "Pages fivenegative sixx here."
+ },
+ {
+  "input": "Xmay 2020 and Xjan 2021.",
+  "output": "Xmay twenty twenty and Xjan twenty twenty-one."
+ },
+ {
+  "input": "Since May 20201 ok.",
+  "output": "Since May twenty thousand two hundred one ok."
+ },
+ {
+  "input": "Log 12:34:56x here.",
+  "output": "Log twelve thirty-four:fifty-sixx here."
+ },
+ {
+  "input": "At 3:00 . then",
+  "output": "At three . then"
+ },
+ {
+  "input": "Arabic time ٣:٣٠ here.",
+  "output": "Arabic time three thirtyhere."
+ },
+ {
+  "input": "The ſept 5, 2020 launch.",
+  "error": "KeyError: 'ſept'"
+ },
+ {
+  "input": "The 1000000000000000000th try.",
+  "output": "The th try."
+ }
+]

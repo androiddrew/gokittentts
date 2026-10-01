@@ -1,0 +1,424 @@
+// Normalizer corpus: one input per line. Blank lines and lines starting with
+// "//" are skipped. `make golden` records Python's normalize_text output for
+// each input in normalize_golden.json; deliberate differences are listed in
+// normalize_overrides.yaml.
+
+// KittenTTS tests/test_text_normalization.py
+Smith et al. 2024, pp. 31-35
+Fig. 2
+Dr. Rivera paid $12.50 at 3:05 p.m.
+Jan. 2026
+version 2.4
+May 5, 2026
+10:30 AM
+$1,250.00
+9%
+v1.2.3
+Visit https://example.com or email hello@example.com.
+
+// Plain numbers
+0
+7
+13
+42
+99
+100
+101
+110
+999
+1000
+1001
+1100
+1200
+1234
+2000
+9999
+10000
+12345
+100000
+999999
+1000000
+1234567
+1000000000
+1000000000000
+999999999999999
+There are 3 apples.
+I counted 17 birds and 40 bees.
+The answer is 42.
+She ran 5 miles yesterday.
+We need 0 more.
+Only 1 left.
+Room 101 is down the hall.
+It costs about 1500 to fix.
+The population is 8000000.
+The town has 12,000 residents.
+The file has 1,234,567 rows.
+Around 2,500 people came.
+The stadium holds 100,000 fans.
+That is 1,000,000 times better.
+Pi is 3.14.
+It weighs 2.5 kilograms.
+The ratio was 0.75.
+Use 1.50 as the factor.
+The rate is 1.007 per step.
+Set it to 0.0 for now.
+The value fell to -5.
+The temperature was -12 overnight.
+The balance is -0.5 points.
+Agent 007 reported in.
+Dial 0042 to reach the desk.
+A score of 3.5 out of 5.
+It grew from 1.2 to 4.8 in a year.
+The total came to 12,345.67 points.
+Line 10 and line 20 differ.
+Version 3 is better than version 2.
+Chapter 12 starts on the next page.
+About 70 of the 120 seats were filled.
+Item #4 is missing.
+Order 66 was executed.
+Add 2 and 2 to get 4.
+Just 1 thing remains.
+
+// Numbers beside punctuation
+There were 3, maybe 4.
+I picked 5, 6 and 7.
+Steps 1, 2, and 3 are done.
+In 2024, the team grew.
+By 1999, the web was everywhere.
+After 10, we stopped.
+Count 1,2,3 out loud.
+Sizes: 8, 10, 12.
+The code (404), not found.
+He said "hi", then left.
+Wait , what?
+"Yes", she said.
+Item (a), item (b).
+The end).
+
+// Large numbers
+The debt is 1,000,000,000,000,000 dollars.
+Avogadro's number is about 602214076000000000000000.
+That serial is 12345678901234567890.
+A googol has 100 zeros.
+
+// Years
+2024 budget
+The 2024 budget passed.
+In 1999 we partied.
+Born in 1987.
+Back in 1900 things were different.
+The year 2000 was a big deal.
+It happened in 2005.
+The 2010 census counted everyone.
+Plans for 2050 are ambitious.
+The deadline is 2099.
+Founded in 1800.
+The year 1066 changed England.
+It was 1776 when it started.
+The 2100 forecast is grim.
+In 1950 and 1960 the town grew.
+From 2019 to 2023 sales doubled.
+
+// Ranges
+pages 100-200
+10-20 items
+Read pages 31-35 tonight.
+The 2020-2024 plan is done.
+Ages 5-12 are welcome.
+Open 9-5 on weekdays.
+Scores of 0-100 are allowed.
+Between 1990-2010 it changed.
+It runs 1-2 hours.
+Sizes 2-4-6 are left.
+Call 555-1234 now.
+Use x-5 as the offset.
+
+// Ordinals
+1st place
+2nd floor
+3rd base
+4th of July
+21st century
+22nd birthday
+23rd anniversary
+100th day
+He finished 11th.
+She was 12th in line.
+The 13th floor is missing.
+It is our 20th year.
+The 30th reunion was fun.
+The 40th, 50th and 60th games.
+The 90th minute.
+The 101st airborne.
+The 111th entry.
+The 1000th visitor wins.
+The 1ST and 2ND rounds.
+He came 0th somehow.
+The 3th is a typo.
+My 25th birthday was great.
+
+// Dates
+January 1, 2024
+Jan 5th, 2025
+February 14, 2023 was a Tuesday.
+Feb. 29, 2024 is a leap day.
+The meeting is on March 3rd, 2025.
+Mar 15 2024 is the deadline.
+April 1, 2000 was no joke.
+Apr. 30, 1999 was the last day.
+May 31, 2026
+June 21st, 2021 was the solstice.
+Jun 6, 1944 changed history.
+July 4, 1776
+Jul. 20, 1969 was the moon landing.
+August 15, 2010
+Aug 9th 2009 marked a change.
+September 11, 2001
+Sept. 1, 2022 was the start.
+Sep 30, 2019
+October 31, 2023 was spooky.
+Oct. 3rd, 2003
+November 22, 1963
+Nov 5 2015
+December 25, 2025
+Dec. 31, 1999 was the last night.
+march 3, 2025 in lowercase.
+JANUARY 9, 2020 in capitals.
+Launched in March 2024.
+Since Jan 2020 nothing changed.
+Due Dec. 2025.
+In September 2001 everything changed.
+Expected Q3 2025.
+The 2025-01-15 release.
+Sent on 01/15/2025.
+Updated 15 January 2025.
+May the force be with you.
+We met on May 2 at noon.
+
+// Times
+3:30pm
+14:00
+9:05 AM
+12:00pm
+Meet me at 4:30 p.m. today.
+The train leaves at 7:15 a.m.
+Lunch is at 12:30 PM.
+The show starts at 8:00 PM.
+Wake up at 6:00am.
+It ended at 23:59.
+The store opens at 09:00.
+The alarm rang at 5:07.
+The race took 1:02:03.
+Midnight is 0:00.
+The call is at 10:00 tomorrow.
+We arrive at 3:00 today.
+At 11:45 pm we left.
+By 2:30, everyone was tired.
+It is 13:30 PM somehow.
+Meet at 7:30a.m. sharp.
+Meet at 7:30 AM.
+The log says 12:34:56.
+The ratio was 3:2.
+Scores were 21:14 at halftime.
+
+// Money
+It costs $5.
+It costs $5.99.
+The price is $1,000.
+We raised $3.5 million.
+The budget was $3.5 million.
+The deal was worth $2B.
+Revenue hit $10M last year.
+It costs €20.
+That was £3.50 well spent.
+A coffee is ¥500.
+Pay ₹100 at the gate.
+One ₿ is a lot.
+$0.99 per song.
+He owes me $100.
+A $5 bill.
+
+// Percentages
+50% off
+The rate rose 3.5%.
+Only 0.1% failed.
+Growth was -2% this quarter.
+100% sure.
+Between 10% and 20% of users.
+1,000% growth is unusual.
+
+// Versions and model names
+Python 3.12.1 was released.
+Upgrade to v2.0.1 today.
+Kernel 6.8.0-45 is installed.
+GPT-4 is a model.
+I use gpt-3.5 sometimes.
+The Llama-2 weights are open.
+Try Model-3 next.
+Release 1.0 is out.
+Node 20.11.0 is required.
+See RFC-2616 for details.
+
+// Units
+3 GB
+It has 16 GB of memory.
+The file is 500 MB.
+Drive 60 mph.
+It is 25 °C outside.
+The CPU runs at 3.5 GHz.
+Latency was 20 ms.
+The bag weighs 5 kg.
+It is 10 km away.
+Take 200 mg twice a day.
+Add 250 ml of water.
+
+// Scale suffixes and other forms
+The model has 7B parameters.
+We served 10K users.
+The 1990s were great.
+Mix 1/2 cup of sugar.
+The value is 1e10.
+The speed of light is 3e8 meters per second.
+Approximately .5 of them.
+Ping 192.168.1.1 to check.
+Call (555) 123-4567 now.
+
+// URLs and emails
+Visit https://example.com/docs for more.
+See www.example.org for details.
+The repo is at https://github.com/KittenML/KittenTTS.
+Email bob@example.com for help.
+Contact support@my-company.io today.
+Go to http://localhost:8080/v1/audio/speech now.
+
+// Titles and abbreviations
+Dr. Smith is here.
+Prof. Jones teaches math.
+Mr. and Mrs. Brown arrived.
+Ms. Green called.
+See Fig. 3 for details.
+Figs. 4 and 5 show results.
+Read pp. 10-12.
+See p. 7.
+Read ch. 4 first.
+See sec. 2.1 for background.
+As Smith et al. showed.
+
+// HTML and symbols
+Use <b>bold</b> text.
+Line one<br>line two.
+Tom & Jerry.
+A + B = C.
+Use the #general channel.
+Ping @alice about it.
+Price * quantity.
+Path is a/b/c.
+Hello... world.
+Wait—what?
+It's 5 o'clock.
+Don't stop.
+"Quoted text" here.
+Use [brackets] and {braces}.
+Items: apples; pears; plums.
+Really?! Yes!
+
+// Markdown as written
+# Heading 1
+## Step 2: install
+- Item 1
+* Item 2
+1. First step
+2. Second step
+**Bold 5** and *italic 6*.
+`code 7` inline.
+[Link 8](https://example.com)
+| Col 1 | Col 2 |
+
+// Unicode
+café 2024
+naïve 3 times
+Ünïcödé 5
+Arabic digit ٣ cats.
+Fullwidth １２３ items.
+Superscript 10² here.
+Spaced 4:30 PM here.
+Non-breaking 5 kg.
+Tab	separated	3	values.
+Multiple   spaces   7   here.
+Line one
+   Leading spaces 2 here.
+
+// LLM-style replies
+Sure! Here are 3 tips for better sleep: go to bed by 10:30 PM, avoid screens after 9:00, and aim for 7-9 hours.
+The meeting is scheduled for March 3rd, 2025 at 2:00 PM in Room 204.
+In 2023, revenue grew 15% to $4.2 billion, up from $3.6 billion in 2022.
+The first 100 users get a 20% discount until Dec. 31, 2025.
+Your order #12345 will arrive between June 5-7.
+Step 1: install Python 3.11. Step 2: run pip install. Step 3: done.
+The Apollo 11 mission landed on July 20, 1969 at 20:17 UTC.
+The recipe needs 2 eggs, 1.5 cups of flour and 3/4 cup of milk.
+At 6:45 am the 3rd train left platform 9.
+World War II ended in 1945; the Cold War lasted until 1991.
+The 21st century began on January 1, 2001, not 2000.
+Mount Everest is 8,849 meters tall.
+The project had 1,024 commits by Aug 2024.
+Run the job every 15 minutes between 9:00 and 17:00.
+Queen Elizabeth II reigned for 70 years.
+Chapter IV covers the 1800s.
+Henry VIII had 6 wives.
+The Super Bowl LVIII was in 2024.
+The bus runs every 20-30 minutes.
+Call me at 5:30, or after 6.
+The 2nd, 3rd and 4th place winners get prizes.
+Her flight is at 10:15 a.m. on Friday.
+On Nov. 8, 2016 the polls closed at 8:00 p.m.
+The building has 102 floors and was finished in 1931.
+Over 7,000 languages are spoken today.
+The marathon is 42.195 kilometers long.
+The lease runs 2024-2026.
+The 1st of May is a holiday.
+Read the 3rd paragraph twice.
+The score was 3-1 at the 90th minute.
+There are 365 days in a year, 366 in a leap year.
+I slept from 11:00 PM to 7:00 AM.
+The 0.1 release was buggy, the 0.2 release was not.
+His record was 9.58 seconds in 2009.
+Sales hit 1,000,000 units by April 2021.
+The class meets Mon-Fri 8:30-10:00.
+The 5th of November is remembered.
+Interest is compounded 12 times a year.
+The answer, 42, was unexpected.
+Roughly 1 in 4 people agree.
+
+// Lookarounds and word boundaries (rewritten for RE2 as a match plus a check)
+café2024
+abc123 and x99
+ID A1st is wrong.
+Version x5-6 and 5-6x and 5-6_ differ.
+The 5-6 split.
+A_7-8 code.
+Born-2020 in text.
+It is 12:30x now.
+Call ab3:30 or é3:30.
+At 3:05 p.m.
+At 3:05 p.m
+At 3:05 am, sharp.
+At 3:05 ammo.
+Done by 12:345.
+May 5, 20261 is not a date.
+Mayday 5, 2020 is not a date.
+XMay 5, 2020 again.
+Get 1sté now.
+Ten 10² and 2³.
+Coordinates -5,-6 here.
+A lone - dash and -- double.
+The 1st. And 2nd!
+Rates of 4.5.6 and 7..8 differ.
+Pages 5-6x here.
+Xmay 2020 and Xjan 2021.
+Since May 20201 ok.
+Log 12:34:56x here.
+At 3:00 . then
+Arabic time ٣:٣٠ here.
+The ſept 5, 2020 launch.
+The 1000000000000000000th try.

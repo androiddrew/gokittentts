@@ -455,6 +455,52 @@ func TestMarkdownIsReadAsProse(t *testing.T) {
 	}
 }
 
+// goldenChunk is a testdata/golden.json entry from the Python reference.
+type goldenChunk struct {
+	Chunk string `json:"chunk"`
+	IDs   []int  `json:"ids"`
+}
+
+func TestNormalizeIsOptional(t *testing.T) {
+	m := mustModel(t, models[0])
+	tokens := func(text string, normalize bool) []int {
+		var counts []int
+		for c, err := range m.Stream(context.Background(), kittentts.Request{Text: text, Voice: "Leo", Speed: 1, Normalize: normalize}) {
+			if err != nil {
+				t.Fatal(err)
+			}
+			counts = append(counts, c.Tokens)
+		}
+		return counts
+	}
+	const year, spoken = "The 2024 budget passed.", "The twenty twenty-four budget passed."
+	if got, want := tokens(year, true), tokens(spoken, false); !slices.Equal(got, want) {
+		t.Errorf("normalized, %q ran as %v tokens per chunk; %q runs as %v", year, got, spoken, want)
+	}
+	if got, normalized := tokens(year, false), tokens(year, true); slices.Equal(got, normalized) {
+		t.Errorf("with Normalize off, %q ran as %v tokens per chunk, the same as with it on", year, got)
+	}
+	// The phonemizer keeps a decimal whole, so espeak-ng reads it as one
+	// number even with the normalizer off: the chunk runs as the Python
+	// reference's ids for "θɹˈiː pɔɪnt fˈaɪv".
+	const decimal = "Version 3.5 shipped on time."
+	b, err := os.ReadFile("../testdata/golden.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var golden []goldenChunk
+	if err := json.Unmarshal(b, &golden); err != nil {
+		t.Fatal(err)
+	}
+	i := slices.IndexFunc(golden, func(g goldenChunk) bool { return g.Chunk == decimal })
+	if i < 0 {
+		t.Fatalf("no golden chunk %q", decimal)
+	}
+	if got, want := tokens(decimal, false), []int{len(golden[i].IDs)}; !slices.Equal(got, want) {
+		t.Errorf("with Normalize off, %q ran as %v tokens per chunk; the Python reference has %v", decimal, got, want)
+	}
+}
+
 func mustModel(t *testing.T, name string) *kittentts.Model {
 	t.Helper()
 	m, err := engine.Model(name)
