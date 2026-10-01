@@ -214,7 +214,7 @@ func say(args []string) error {
 	speed := fs.Float64("speed", 1, "speaking speed, 0.5 to 2.0")
 	out := fs.String("out", "out.wav", "WAV file to write")
 	md := fs.Bool("markdown", true, "read markdown as prose; --markdown=false reads the text as written")
-	normalizeText := fs.Bool("normalize", true, "read numbers, dates and times as words; --normalize=false leaves them to espeak-ng")
+	normalizeText := fs.Bool("normalize", true, "read numbers, dates, money, units and URLs as words; --normalize=false leaves them to espeak-ng")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}

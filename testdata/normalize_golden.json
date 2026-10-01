@@ -1786,5 +1786,121 @@
  {
   "input": "Only 01 km left.",
   "output": "Only one km left."
+ },
+ {
+  "input": "See (https://example.com).",
+  "output": "See e x a m p l e dot c o m dot"
+ },
+ {
+  "input": "Visit https://example.com, then go.",
+  "output": "Visit e x a m p l e dot c o m then go."
+ },
+ {
+  "input": "Visit HTTPS://EXAMPLE.COM now.",
+  "output": "Visit HTTPS: EXAMPLE.COM now."
+ },
+ {
+  "input": "See https://example.com?q=1&x=2#top now.",
+  "output": "See e x a m p l e dot c o m question mark q equals one and x equals two t o p now."
+ },
+ {
+  "input": "Go to https://x.com/٣ now.",
+  "error": "KeyError: '٣'"
+ },
+ {
+  "input": "Read https://en.wikipedia.org/wiki/Foo_(bar) today.",
+  "output": "Read e n dot w i k i p e d i a dot o r g slash w i k i slash f o o underscore b a r today."
+ },
+ {
+  "input": "Try www.Example.com/a_b now.",
+  "output": "Try w w w d o t e x a m p l e dot c o m slash a underscore b now."
+ },
+ {
+  "input": "Email me at bob@example.com.",
+  "output": "Email me at b o b at e x a m p l e dot c o m."
+ },
+ {
+  "input": "Mail a@b.co.uk now.",
+  "output": "Mail a at b dot c o.uk now."
+ },
+ {
+  "input": "Mail .bob@x.com now.",
+  "output": "Mail .b o b at x dot c o m now."
+ },
+ {
+  "input": "Write to first.last+tag@sub-domain.example.org today.",
+  "output": "Write to f i r s t dot l a s t t a g at s u b dash d o m a i n dot e x a m p l e.org today."
+ },
+ {
+  "input": "Email x@a.bc1 is not an address.",
+  "output": "Email x a.bc1 is not an address."
+ },
+ {
+  "input": "Meet at 5 p.m. today.",
+  "output": "Meet at five pagem. today."
+ },
+ {
+  "input": "At 5 P.M. sharp.",
+  "output": "At five pageM. sharp."
+ },
+ {
+  "input": "Ask Dr.Who now.",
+  "output": "Ask DoctorWho now."
+ },
+ {
+  "input": "Mr Smith and Mrs. Jones.",
+  "output": "Mr Smith and Misses Jones."
+ },
+ {
+  "input": "It is p. 5 and pp. 6-7.",
+  "output": "It is page five and pages six to seven."
+ },
+ {
+  "input": "DR. NO and PROF. X.",
+  "output": "Doctor NO and Professor X."
+ },
+ {
+  "input": "Smith ET AL. wrote it.",
+  "output": "Smith et al wrote it."
+ },
+ {
+  "input": "Smith et  al. wrote it.",
+  "output": "Smith et al wrote it."
+ },
+ {
+  "input": "Pet al. is a word.",
+  "output": "Pet al. is a word."
+ },
+ {
+  "input": "The <a href=\"x\">link</a>.",
+  "output": "The link ."
+ },
+ {
+  "input": "Use 3 < 5 and 6 > 2.",
+  "output": "Use three two."
+ },
+ {
+  "input": "A <!-- comment --> here.",
+  "output": "A here."
+ },
+ {
+  "input": "Tags <br/> and </p> close.",
+  "output": "Tags and close."
+ },
+ {
+  "input": "Meet at 5 p.m, ok.",
+  "output": "Meet at five pagem, ok."
+ },
+ {
+  "input": "Mail bob@a.org.uk1 now.",
+  "output": "Mail b o b at a dot o r g.uk1 now."
+ },
+ {
+  "input": "Go to WWW.EXAMPLE.COM now.",
+  "output": "Go to WWW.EXAMPLE.COM now."
+ },
+ {
+  "input": "Have you seen https://a.com/x?",
+  "output": "Have you seen a dot c o m slash x question mark"
  }
 ]

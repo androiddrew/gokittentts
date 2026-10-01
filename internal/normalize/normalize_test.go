@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"regexp"
 	"testing"
 
 	"go.yaml.in/yaml/v3"
@@ -38,20 +37,6 @@ type override struct {
 	Approved bool   `yaml:"approved"`
 }
 
-// pending lists the substitutions not ported yet, with the issue that ports
-// them. A corpus case that differs from Python and contains one of them is
-// skipped rather than failed.
-var pending = []struct {
-	what string
-	re   *regexp.Regexp
-}{
-	{"URL (issue 13)", regexp.MustCompile(`https?://|www\.`)},
-	{"email (issue 13)", regexp.MustCompile(`@`)},
-	{"HTML (issue 13)", regexp.MustCompile(`<[^>]+>`)},
-	{"et al. (issue 13)", regexp.MustCompile(`(?i)\bet\s+al\.`)},
-	{"title (issue 13)", regexp.MustCompile(`(?i)\b(?:Dr|Prof|Mr|Mrs|Ms|Fig|Figs|pp|p|ch|sec)\.(?:[^m]|$)`)},
-}
-
 func TestCorpus(t *testing.T) {
 	var cases []golden
 	readJSON(t, "../../testdata/normalize_golden.json", &cases)
@@ -72,15 +57,9 @@ func TestCorpus(t *testing.T) {
 			if c.Output == nil {
 				t.Fatalf("Python raised %s on %q; the case needs an override", c.Error, c.Input)
 			}
-			if got == *c.Output {
-				return
+			if got != *c.Output {
+				t.Errorf("Text(%q)\n got: %q\nwant: %q (Python)", c.Input, got, *c.Output)
 			}
-			for _, p := range pending {
-				if p.re.MatchString(c.Input) {
-					t.Skipf("pending %s: Text(%q) = %q, Python gives %q", p.what, c.Input, got, *c.Output)
-				}
-			}
-			t.Errorf("Text(%q)\n got: %q\nwant: %q (Python)", c.Input, got, *c.Output)
 		})
 	}
 }
@@ -137,6 +116,8 @@ func TestExamples(t *testing.T) {
 		"2024 budget":  "twenty twenty-four budget",
 		"$3.5 million": "three point five million dollars",
 		"3 GB":         "three gigabytes",
+		"Visit https://example.com or email hello@example.com.": "Visit e x a m p l e dot c o m or email h e l l o at e x a m p l e dot c o m.",
+		"Dr. Rivera paid $12.50 at 3:05 p.m.":                   "Doctor Rivera paid twelve dollars and fifty cents at three oh five p m.",
 	} {
 		if got := normalize.Text(in); got != want {
 			t.Errorf("Text(%q) = %q, want %q", in, got, want)

@@ -464,3 +464,83 @@
   expected: "Only one kilometer left."
   reason: "Python leaves units after a number as written (\"three GB\"). Units are spelled out, ported from TextPreprocessor's expand_units, singular after 1."
   approved: false
+- input: "Smith et al. 2024, pp. 31-35"
+  python: "Smith et al twenty twenty-four pages thirty-one to thirty-five"
+  expected: "Smith et al twenty twenty-four, pages thirty-one to thirty-five"
+  reason: "Python's number pattern takes the commas after a number, so the pause after it is lost. The commas stay."
+  approved: false
+- input: "See www.example.org for details."
+  python: "See w w w d o t e x a m p l e dot o r g for details."
+  expected: "See w w w dot e x a m p l e dot o r g for details."
+  reason: "Python spells its own \"www dot\" as \"w w w d o t\". It is \"w w w dot\"."
+  approved: false
+- input: "The repo is at https://github.com/KittenML/KittenTTS."
+  python: "The repo is at g i t h u b dot c o m slash k i t t e n m l slash k i t t e n t t s dot"
+  expected: "The repo is at g i t h u b dot c o m slash k i t t e n m l slash k i t t e n t t s."
+  reason: "Python spells the punctuation ending a URL (\"... c o m dot\"), so the sentence or clause loses its ending. It stays in the text; closing brackets and quotes there are dropped."
+  approved: false
+- input: "See (https://example.com)."
+  python: "See e x a m p l e dot c o m dot"
+  expected: "See e x a m p l e dot c o m."
+  reason: "Python spells the punctuation ending a URL (\"... c o m dot\"), so the sentence or clause loses its ending. It stays in the text; closing brackets and quotes there are dropped."
+  approved: false
+- input: "Visit https://example.com, then go."
+  python: "Visit e x a m p l e dot c o m then go."
+  expected: "Visit e x a m p l e dot c o m, then go."
+  reason: "Python spells the punctuation ending a URL (\"... c o m dot\"), so the sentence or clause loses its ending. It stays in the text; closing brackets and quotes there are dropped."
+  approved: false
+- input: "Visit HTTPS://EXAMPLE.COM now."
+  python: "Visit HTTPS: EXAMPLE.COM now."
+  expected: "Visit e x a m p l e dot c o m now."
+  reason: "Python matches URLs case-sensitively, so \"HTTPS://EXAMPLE.COM\" is read as \"HTTPS: EXAMPLE.COM\". URLs match case-insensitively."
+  approved: false
+- input: "Go to https://x.com/٣ now."
+  python: "KeyError: '٣'"
+  expected: "Go to x dot c o m slash three now."
+  reason: "Python raises KeyError spelling a non-ASCII digit in a URL. The digit is read."
+  approved: false
+- input: "Try www.Example.com/a_b now."
+  python: "Try w w w d o t e x a m p l e dot c o m slash a underscore b now."
+  expected: "Try w w w dot e x a m p l e dot c o m slash a underscore b now."
+  reason: "Python spells its own \"www dot\" as \"w w w d o t\". It is \"w w w dot\"."
+  approved: false
+- input: "Mail a@b.co.uk now."
+  python: "Mail a at b dot c o.uk now."
+  expected: "Mail a at b dot c o dot u k now."
+  reason: "Python's email pattern stops at the domain's first dot (\"a at b dot c o.uk\"). A domain can have several dots."
+  approved: false
+- input: "Write to first.last+tag@sub-domain.example.org today."
+  python: "Write to f i r s t dot l a s t t a g at s u b dash d o m a i n dot e x a m p l e.org today."
+  expected: "Write to f i r s t dot l a s t t a g at s u b dash d o m a i n dot e x a m p l e dot o r g today."
+  reason: "Python's email pattern stops at the domain's first dot (\"a at b dot c o.uk\"). A domain can have several dots."
+  approved: false
+- input: "Meet at 5 p.m. today."
+  python: "Meet at five pagem. today."
+  expected: "Meet at five p.m. today."
+  reason: "Python reads the \"p.\" of \"p.m.\" as the title \"page\" (\"five pagem.\"). \"p.m.\" is left alone."
+  approved: false
+- input: "At 5 P.M. sharp."
+  python: "At five pageM. sharp."
+  expected: "At five P.M. sharp."
+  reason: "Python reads the \"p.\" of \"p.m.\" as the title \"page\" (\"five pagem.\"). \"p.m.\" is left alone."
+  approved: false
+- input: "Use 3 < 5 and 6 > 2."
+  python: "Use three two."
+  expected: "Use three five and six two."
+  reason: "Python's HTML pattern takes \"< 5 and 6 >\" for a tag and deletes it. A tag needs a name after \"<\"."
+  approved: false
+- input: "Meet at 5 p.m, ok."
+  python: "Meet at five pagem, ok."
+  expected: "Meet at five p.m, ok."
+  reason: "Python reads the \"p.\" of \"p.m.\" as the title \"page\" (\"five pagem.\"). \"p.m.\" is left alone."
+  approved: false
+- input: "Go to WWW.EXAMPLE.COM now."
+  python: "Go to WWW.EXAMPLE.COM now."
+  expected: "Go to w w w dot e x a m p l e dot c o m now."
+  reason: "Python matches URLs case-sensitively, so \"HTTPS://EXAMPLE.COM\" is read as \"HTTPS: EXAMPLE.COM\". URLs match case-insensitively."
+  approved: false
+- input: "Have you seen https://a.com/x?"
+  python: "Have you seen a dot c o m slash x question mark"
+  expected: "Have you seen a dot c o m slash x?"
+  reason: "Python spells the punctuation ending a URL (\"... c o m dot\"), so the sentence or clause loses its ending. It stays in the text; closing brackets and quotes there are dropped."
+  approved: false

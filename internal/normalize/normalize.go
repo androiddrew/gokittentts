@@ -1,13 +1,14 @@
 // Package normalize rewrites text the way it should be read aloud: numbers,
-// years, ordinals, dates, times, money, percents, units and versions become
-// words. It is a port of KittenTTS
+// years, ordinals, dates, times, money, percents, units, versions and
+// titles become words, and URLs and emails are spelled out. It is a port of KittenTTS
 // preprocess.py's normalize_text (read-aloud mode, scripts/preprocess_ref.py),
 // without its span tracking, plus the deviations recorded in
 // testdata/normalize_overrides.yaml.
 //
-// The substitutions run in Python's order. Units and scale suffixes ("3 GB",
-// "7B"), which normalize_text lacks, come from TextPreprocessor and run after
-// percents. Not ported yet: HTML, URLs and emails, et al. and titles.
+// The substitutions run in Python's order: HTML, URLs, emails, dates, times,
+// money, percents, ordinals, et al., titles, versions, ranges and numbers.
+// Units and scale suffixes ("3 GB", "7B"), which normalize_text lacks, come
+// from TextPreprocessor and run after percents.
 //
 // Python's regexes are Unicode-aware and some use lookarounds, which RE2
 // lacks. Here \w is [\p{L}\p{N}_], \d is \p{Nd} and \s is Python's
@@ -23,8 +24,11 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-// Python's \s: str.isspace.
-const space = `\t-\r\x1c-\x1f\x{85}\p{Z}`
+// Python's \s (str.isspace) and \w, for character classes.
+const (
+	space = `\t-\r\x1c-\x1f\x{85}\p{Z}`
+	word  = `\p{L}\p{N}_`
+)
 
 const monthNames = `(Jan\.?|January|Feb\.?|February|Mar\.?|March|Apr\.?|April|May|` +
 	`Jun\.?|June|Jul\.?|July|Aug\.?|August|Sep\.?|Sept\.?|September|` +
@@ -45,13 +49,16 @@ var (
 	// (?<![a-zA-Z])-?[\d,]+(?:\.\d+)?
 	reNumber = regexp.MustCompile(`-?[\p{Nd},]+(?:\.\p{Nd}+)?`)
 
-	rePunctuation = regexp.MustCompile(`[^\p{L}\p{N}_` + space + `.,?!;:\-\x{2014}\x{2013}\x{2026}]`)
+	rePunctuation = regexp.MustCompile(`[^` + word + space + `.,?!;:\-\x{2014}\x{2013}\x{2026}]`)
 	reSpaces      = regexp.MustCompile(`[` + space + `]+`)
 )
 
 // Text normalizes s for reading aloud.
 func Text(s string) string {
 	s = norm.NFC.String(s)
+	s = reHTML.ReplaceAllString(s, " ")
+	s = sub(s, reURL, nil, nil, func(m []string) string { return urlWords(m[0]) })
+	s = scan(s, reEmail, email)
 	s = sub(s, reMonthDayYear, wordBefore, wordAfter, func(m []string) string {
 		return monthName(m[1]) + " " + ordinalWords(digits(m[2])) + ", " + yearWords(atoi(digits(m[3])))
 	})
@@ -68,6 +75,8 @@ func Text(s string) string {
 	s = sub(s, reOrdinal, wordBefore, wordAfter, func(m []string) string {
 		return ordinalWords(digits(m[1]))
 	})
+	s = sub(s, reEtAl, wordBefore, nil, func([]string) string { return "et al" })
+	s = sub(s, reTitle, titleBoundary, nil, titleWords)
 	s = scan(s, reDottedVersion, dottedVersion)
 	s = sub(s, reRange, wordBefore, wordAfter, rangeWords)
 	s = sub(s, reModelVersion, wordBefore, nil, modelVersion)
@@ -83,12 +92,21 @@ func Text(s string) string {
 // Deviation: any spelling the pattern matched is looked up case-folded.
 func monthName(raw string) string {
 	raw = strings.TrimRight(raw, ".")
-	for k, v := range months {
-		if strings.EqualFold(k, raw) {
-			return v
-		}
+	if name, ok := lookupFold(months, raw); ok {
+		return name
 	}
 	return raw
+}
+
+// lookupFold looks key up in m ignoring case the way Go's (?i) does, which
+// folds more than strings.ToLower ("ſ" matches "s", "K" matches "k").
+func lookupFold(m map[string]string, key string) (string, bool) {
+	for k, v := range m {
+		if strings.EqualFold(k, key) {
+			return v, true
+		}
+	}
+	return "", false
 }
 
 // rangeWords reads "2020-2024" as two years and anything else as two numbers.

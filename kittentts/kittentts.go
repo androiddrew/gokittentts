@@ -47,9 +47,10 @@ type Request struct {
 	// become sentences, code blocks are skipped, link URLs and markup are
 	// dropped, and emoji are removed. Off, the text is read as written.
 	Markdown bool
-	// Normalize rewrites numbers, years, ordinals, dates and times as words
-	// before chunking, after the markdown pass. Off, they reach espeak-ng as
-	// written, which still reads a decimal such as 3.5 as one number.
+	// Normalize rewrites numbers, dates, times, money, units, versions and
+	// titles as words and spells out URLs and emails, before chunking and
+	// after the markdown pass. Off, the text reaches espeak-ng as written,
+	// which still reads a decimal such as 3.5 as one number.
 	Normalize bool
 }
 
