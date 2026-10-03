@@ -1,3 +1,5 @@
+github.com/androiddrew/go-ttsnorm v0.1.0 h1:AvHgQSBASTYvAfx7/W9dUwQX3unPNqnJKUIUshuWFmw=
+github.com/androiddrew/go-ttsnorm v0.1.0/go.mod h1:kydShs9zfWe52MR1/zkDWp4Obviu4cemH48VaJasPIo=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/braheezy/shine-mp3 v0.2.0 h1:0OwmbVLfQFe4c5+UjV5FF4NKedxYw0qHnP5rDOs/wjU=

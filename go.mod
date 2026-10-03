@@ -3,15 +3,19 @@ module github.com/androiddrew/gokittentts
 go 1.26.0
 
 require (
+	github.com/androiddrew/go-ttsnorm v0.1.0
 	github.com/braheezy/shine-mp3 v0.2.0
 	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.70.1
 	github.com/yalue/onnxruntime_go v1.36.0
-	github.com/yuin/goldmark v1.8.6
 	go.yaml.in/yaml/v3 v3.0.5
-	golang.org/x/text v0.42.0
+)
+
+require (
+	github.com/yuin/goldmark v1.8.6 // indirect
+	golang.org/x/text v0.42.0 // indirect
 )
 
 require (

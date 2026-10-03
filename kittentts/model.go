@@ -14,9 +14,9 @@ import (
 
 	ort "github.com/yalue/onnxruntime_go"
 
-	"github.com/androiddrew/gokittentts/internal/chunk"
-	"github.com/androiddrew/gokittentts/internal/markdown"
-	"github.com/androiddrew/gokittentts/internal/normalize"
+	"github.com/androiddrew/go-ttsnorm/sentence"
+	"github.com/androiddrew/go-ttsnorm/markdown"
+	"github.com/androiddrew/go-ttsnorm/normalize"
 	"github.com/androiddrew/gokittentts/internal/npz"
 	"github.com/androiddrew/gokittentts/internal/phonemize"
 	"github.com/androiddrew/gokittentts/internal/tokenize"
@@ -232,7 +232,7 @@ func (m *Model) Stream(ctx context.Context, r Request) iter.Seq2[Chunk, error] {
 		if r.Normalize {
 			prose = normalize.Text(prose)
 		}
-		for _, text := range chunk.Split(prose) {
+		for _, text := range sentence.Split(prose) {
 			if err := ctx.Err(); err != nil {
 				yield(Chunk{}, err)
 				return

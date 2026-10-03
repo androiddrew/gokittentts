@@ -201,7 +201,7 @@ wave = wave[:max(0, len(wave)-5000)] // Go-owned; safe after Destroy
 
 Accuracy on real input is the priority. Two passes run before chunking, both on by default and both switchable per request.
 
-### 6.1 Markdown pass (`internal/markdown`)
+### 6.1 Markdown pass (`github.com/androiddrew/go-ttsnorm/markdown`)
 
 Parse with [goldmark](https://github.com/yuin/goldmark) (pure Go, CommonMark plus the GFM table extension) and walk the AST to produce plain sentences.
 
@@ -222,7 +222,7 @@ Parse with [goldmark](https://github.com/yuin/goldmark) (pure Go, CommonMark plu
 
 Plain text without markdown syntax must pass through unchanged apart from emoji removal. A property test checks this.
 
-### 6.2 Normalizer (`internal/normalize`)
+### 6.2 Normalizer (`github.com/androiddrew/go-ttsnorm/normalize`)
 
 Port Python's `normalize_text` (read-aloud mode, [`preprocess.py`](https://github.com/KittenML/KittenTTS/blob/main/kittentts/preprocess.py) `normalize_text_result`), not `TextPreprocessor`. On 2026-09-30 the two Python normalizers handled real input like this:
 
@@ -282,9 +282,9 @@ Request text ─▶ Markdown pass ─▶ Normalize ─▶ Chunk (sentences, firs
 | `kittentts/` | Public library: `Engine` (a model registry), `Synthesize`, `Stream` |
 | `internal/phonemize` | espeak-ng cgo wrapper, the punctuation splitter with the decimal rule, and the `Phonemizer` interface |
 | `internal/tokenize` | Regex re-tokenize and the symbol-to-id map |
-| `internal/chunk` | Port of `chunk_text`, `ensure_punctuation` and `_is_sentence_boundary`, plus the short-first-chunk rule |
-| `internal/normalize` | The `normalize_text` port and its fixes (section 6.2) |
-| `internal/markdown` | The goldmark-based markdown pass (section 6.1) |
+| `go-ttsnorm/sentence` | Port of `chunk_text`, `ensure_punctuation` and `_is_sentence_boundary`, plus the short-first-chunk rule |
+| `go-ttsnorm/normalize` | The `normalize_text` port and its fixes (section 6.2) |
+| `go-ttsnorm/markdown` | The goldmark-based markdown pass (section 6.1) |
 | `internal/npz` | `voices.npz` reader |
 | `internal/audio` | WAV and PCM writers, the mp3 encoder (`shine-mp3`) and the ffmpeg pipe encoder |
 | `internal/modelstore` | Pinned manifest, Hugging Face download, SHA-256 checks, `pull` |

@@ -23,7 +23,7 @@ ORT_GPU_LIB := $(ORT_GPU_DIR)/lib/libonnxruntime.so.$(ORT_VERSION)
 MODELS_DIR := models
 MODELS := kitten-tts-mini-0.8 kitten-tts-micro-0.8 kitten-tts-nano-0.8-int8 kitten-tts-nano-0.8-fp32
 
-.PHONY: build test test-native test-cuda onnxruntime-gpu image-cpu image-pi5 image-cuda12 image-cuda13 golden golden-test bench-python-ref reference emoji-table
+.PHONY: build test test-native test-cuda onnxruntime-gpu image-cpu image-pi5 image-cuda12 image-cuda13 golden golden-test bench-python-ref reference
 
 build:
 	CGO_ENABLED=1 go build -tags espeak -o bin/gokittentts ./cmd/gokittentts
@@ -119,9 +119,3 @@ bench-python-ref: $(MODELS_DIR)/$(REF_MODEL)/current/config.json
 reference:
 	curl -sfL -o scripts/onnx_model_ref.py $(KITTENTTS_RAW)/onnx_model.py
 	curl -sfL -o scripts/preprocess_ref.py $(KITTENTTS_RAW)/preprocess.py
-
-# Regenerate the markdown pass's Extended_Pictographic table from Unicode's
-# emoji-data.txt (the version is pinned in the script).
-emoji-table:
-	python3 scripts/gen_emoji_table.py
-	gofmt -w internal/markdown/emoji_table.go
